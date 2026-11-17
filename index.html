@@ -92,7 +92,7 @@
 <section class="view" id="v-network">
   <div class="eyebrow">Ağ simülasyonu</div>
   <h1>Birden çok kavşaklı yol ağlarını simüle edin</h1>
-  <p class="lead">Gerçek şehir trafiğinde kavşaklar birbirini etkiler. Bir kavşaktan çıkan araçlar sonrakinin talebini oluşturur. Kuyruk bir sonraki yola sığmazsa önceki kavşağı tıkar (geri taşma). Ardışık sinyaller koordine edilirse araçlar durmadan ilerleyebilir (yeşil dalga). Bu sekmede iki özdeş ağa aynı araç akışı gönderilir ve her ağdaki tüm kavşaklar seçtiğiniz denetleyiciyle yönetilir. Araçlar kavşaklarda belirlenen oranlarda sağa ya da sola döner.</p>
+  <p class="lead">Gerçek şehir trafiğinde kavşaklar birbirini etkiler. Bir kavşaktan çıkan araçlar sonrakinin talebini oluşturur. Kuyruk bir sonraki yola sığmazsa önceki kavşağı tıkar (geri taşma). Ardışık sinyaller koordine edilirse araçlar durmadan ilerleyebilir (yeşil dalga). Bu sekmede iki özdeş ağa aynı araç akışı gönderilir. Her ağdaki tüm kavşaklar seçtiğiniz denetleyiciyle yönetilir ya da sinyalsiz, göbekli dönel kavşağa dönüştürülür. Araçlar kavşaklarda belirlenen oranlarda sağa ya da sola döner. Sola dönenler karşı akıma yol verir, dönel kavşağa girenler de halkadaki araçlara.</p>
 
   <div class="card">
     <div class="row">
@@ -389,7 +389,28 @@
   <div class="eq">\[ \theta_j=\frac{x_j-x_1}{v_p}\ \bmod\ C \]</div>
   <p>Koordinasyon, sinyal zamanlamasının sistem ölçeğindeki temel konularından biridir <a class="cite" data-ref="stm2015" href="#method">(Urbanik vd., 2015)</a>. Bulanık denetim de koordineli tek yönlü yollar için uyarlanmıştır <a class="cite" data-ref="niittymaki1999" href="#method">(Niittymäki, 1999)</a>. Bu projedeki bulanık, araç tetiklemeli ve Q-öğrenme denetleyicileri yalnızca kendi yaklaşımlarını gözlemler, yani koordinasyonsuz çalışır. Bu sayede ağ sekmesi şu soruyu doğrudan sınar: Yerel uyarlanabilirlik mi daha değerlidir, ağ düzeyinde koordinasyon mu?</p>
   <p><b>Ağ ölçütleri.</b> Ağ için şu ölçütler kullanılır: yolculuk başına gecikme (yolculuk süresi eksi serbest akım süresi), yolculuk süresi, yolculuk başına duruş, tamamlanan yolculuk sayısı ve saat başına geri taşma blokajı (araç·dk). Bunlara ek olarak <i>arter gecikmesi</i> ölçülür. Bu ölçüt, ana arterde batıdan doğuya hiç dönmeden geçen araçların gecikmesidir ve yeşil dalganın hedeflediği akışı ayrıca izler.</p>
-  <p class="note">Basitleştirmeler: Kavşak içinde sola dönen araç ile karşı yönden düz gelen araç arasındaki çatışma modellenmez. Her yönde tek şerit vardır ve dönüş cebi yoktur. Bu nedenle sola dönüş oranı yüksek olduğunda kapasite gerçekte olduğundan yüksek çıkabilir.</p>
+  <p><b>Kavşak içi çatışmalar.</b> Sinyalli kavşaklarda aynı fazdaki karşıt akımlar çatışmasız modellenir:</p>
+  <ul>
+    <li><b>İzinli sola dönüş:</b> Sola dönen araç, karşı yönden gelen düz giden ve sağa dönen araçlara yol verir. Karşı araç dur çizgisine 4,5 s'den kısa sürede ulaşacaksa ya da son 2 s içinde kavşağa girdiyse bekler. 4,5 s, HCM'nin izinli sola dönüş için önerdiği kritik aralıktır <a class="cite" data-ref="hcm2000" href="#method">(TRB, 2000)</a>.</li>
+    <li><b>Sola dönüş cebi:</b> Dur çizgisinden önce 30 m uzunluğunda, 4 araç alan bir cep vardır. Bekleyen sola dönenler düz giden akışı tıkamaz. Cep dolarsa beşinci araç ana şeritte bekler ve arkasındakileri durdurur.</li>
+    <li><b>Sarıda dönüş:</b> Sarı ışıkta, karşı akım durmuşsa cepteki ilk araç dönüşünü tamamlar. Bu, sahada gözlenen bir davranıştır.</li>
+    <li><b>Dönüş yolu:</b> Dönen araçlar kavşak içinde eğri bir yol izler ve dönüşe girerken yavaşlar.</li>
+  </ul>
+  <p><b>Dönel kavşak (göbekli).</b> Sinyalli kontrolün alternatifi olarak her kavşak tek şeritli, kompakt bir dönel kavşak olarak da simüle edilebilir. Modelin ayrıntıları şöyledir:</p>
+  <ul>
+    <li><b>Geometri:</b> Halka şerit ekseninin yarıçapı 9 m, göbek yarıçapı 5,2 m.</li>
+    <li><b>Dolaşım:</b> Sağdan trafik kuralına uygun olarak saat yönünün tersinedir. Halkada hız 29 km/sa ile sınırlıdır.</li>
+    <li><b>Giriş kuralı:</b> Giriş, "yol ver" kuralıyla yapılır. Girişe yaklaşan araç yavaşlar. Halkadaki bir araç giriş noktasına kritik aralıktan (\(t_c=4{,}2\) s) kısa sürede ulaşacaksa ya da giriş noktasının hemen ötesindeyse bekler. Aynı koldan ardışık girişler arasında en az \(t_f=2{,}2\) s takip aralığı bulunur.</li>
+    <li><b>Çıkış:</b> Halkada da geri taşma vardır. Gideceği bağlantı doluysa araç halkada bekler.</li>
+  </ul>
+  <p>Model, HCM'nin tek şeritli dönel kavşak giriş kapasitesi modeliyle karşılaştırılarak kalibre edilmiştir <a class="cite" data-ref="hcm2016" href="#method">(TRB, 2016)</a>:</p>
+  <div class="eq">\[ c_e = 1380\,e^{-1{,}02\times10^{-3}\,v_c}\qquad (c_e,\ v_c:\ \text{taşıt/sa}) \]</div>
+  <table class="data">
+    <tr><th>Halka akımı \(v_c\) (taşıt/sa)</th><th>0</th><th>330</th><th>593</th><th>892</th></tr>
+    <tr><td>Simülasyon giriş kapasitesi</td><td>1247</td><td>913</td><td>642</td><td>354</td></tr>
+    <tr><td>HCM modeli</td><td>1380</td><td>985</td><td>754</td><td>556</td></tr>
+  </table>
+  <p class="note">Halka akımı 600 taşıt/sa'e kadar fark %15'in altındadır. Daha yüksek halka akımlarında model temkinlidir, yani kapasiteyi düşük tahmin eder. Bu, dönel kavşak sonuçlarını yoğun koşullarda kötümser kılar.</p>
 
   <h2 id="refs">Kaynakça</h2>
   <ol class="refs">
@@ -408,7 +429,9 @@
     <li id="ref-niittymaki1999">Niittymäki, J. (1999). Fuzzy logic two-phase traffic signal control for coordinated one-way streets. <i>Proceedings of the IEEE Midnight-Sun Workshop on Soft Computing Methods in Industrial Applications</i>, Kuusamo, Finlandiya, 69–74.</li>
     <li id="ref-pappis1977">Pappis, C. P. ve Mamdani, E. H. (1977). A fuzzy logic controller for a traffic junction. <i>IEEE Transactions on Systems, Man, and Cybernetics</i>, 7(10), 707–717. <a href="https://doi.org/10.1109/TSMC.1977.4309605">doi:10.1109/TSMC.1977.4309605</a></li>
     <li id="ref-trabia1999">Trabia, M. B., Kaseko, M. S. ve Ande, M. (1999). A two-stage fuzzy logic controller for traffic signals. <i>Transportation Research Part C: Emerging Technologies</i>, 7(6), 353–367.</li>
+    <li id="ref-hcm2000">Transportation Research Board (2000). <i>Highway Capacity Manual 2000</i>. TRB, Washington, D.C.</li>
     <li id="ref-hcm2010">Transportation Research Board (2010). <i>Highway Capacity Manual 2010</i>. TRB, Washington, D.C.</li>
+    <li id="ref-hcm2016">Transportation Research Board (2016). <i>Highway Capacity Manual, 6th Edition: A Guide for Multimodal Mobility Analysis</i>. TRB, Washington, D.C.</li>
     <li id="ref-stm2015">Urbanik, T. vd. (2015). <i>Signal Timing Manual – Second Edition</i> (NCHRP Report 812). Transportation Research Board. <a href="https://doi.org/10.17226/22097">doi:10.17226/22097</a></li>
     <li id="ref-watkins1992">Watkins, C. J. C. H. ve Dayan, P. (1992). Q-learning. <i>Machine Learning</i>, 8(3–4), 279–292. <a href="https://doi.org/10.1007/BF00992698">doi:10.1007/BF00992698</a></li>
     <li id="ref-webster1958">Webster, F. V. (1958). <i>Traffic Signal Settings</i> (Road Research Technical Paper No. 39). HMSO, Londra.</li>
@@ -439,6 +462,7 @@
       <tr><td>AS4</td><td>İyileşmenin kaynağı üyelik fonksiyonları mı, kural tabanı mı?</td><td>H4: Kural öğrenimi, yalnız üyelik ayarından daha büyük katkı sağlar.</td></tr>
       <tr><td>AS5</td><td>Yorumlanabilir bulanık sistem, kara kutu sayılabilecek bir pekiştirmeli öğrenme ajanına göre nerede durur?</td><td>H5: GA ile ayarlanmış bulanık sistem, aynı bilgiyle eğitilen tablo tabanlı Q-öğrenmeye denk ya da ondan iyidir.</td></tr>
       <tr><td>AS6</td><td>Hangi talep düzeyinde uyarlanabilir kontrolün avantajı kaybolur?</td><td>H6: Avantaj orta talepte en büyüktür. Kapasiteye yaklaştıkça tüm yöntemler doygunluğa girer ve fark daralır.</td></tr>
+      <tr><td>AS8</td><td>Sinyal yerine göbekli dönel kavşak kullanılırsa ağ performansı nasıl değişir?</td><td>H8: Orta talepte dönel kavşak gecikmeyi ve geri taşmayı azaltır, ancak duruş sayısını artırır. Yüksek talepte kapasite sınırına daha erken ulaşır.</td></tr>
       <tr><td>AS7</td><td>Çok kavşaklı ağda yerel uyarlanabilir kontrol mü, koordineli sabit plan (yeşil dalga) mı daha iyidir?</td><td>H7: Yeşil dalga, koordine edilen arter yönündeki gecikmeyi ve duruşları belirgin biçimde azaltır. Ağ genelinde ortalama gecikmede ise yerel uyarlanabilir denetleyiciler daha iyidir.</td></tr>
     </table>
   </section>
@@ -467,6 +491,9 @@
       <tr><td>18</td><td><b>Koordinasyon ödünleşimi</b></td><td>Yeşil dalganın koordine edilen arter yönüne kazandırdığı ile ağ ortalamasına maliyetinin karşılaştırılması (AS7).</td><td>Arter gecikmesi, duruş, ağ gecikmesi</td><td>Ağ deneyi → "Arter gecikmesi" ve "Yolculuk gecikmesi" ölçütleri</td><td><span class="chip ok">Uygulamada</span></td></tr>
       <tr><td>19</td><td><b>Geri taşma analizi</b></td><td>Kuyrukların bir sonraki kavşağı tıkama süresi. Kısa bağlantılı ızgara ile uzun bağlantılı koridorun karşılaştırılması.</td><td>Blokaj (araç·dk/sa), en büyük ağ kuyruğu</td><td>Ağ deneyi → "Geri taşma blokajı"</td><td><span class="chip ok">Uygulamada</span></td></tr>
       <tr><td>20</td><td><b>Dönüş oranı duyarlılığı</b></td><td>Sola ve sağa dönüş oranları artırıldıkça ağ içi dolaşımın ve kavşaklar arası bağımlılığın sonuçlara etkisi.</td><td>Yolculuk gecikmesi</td><td>Ağ Simülasyonu → dönüş kaydırıcıları, ardından Ağ deneyi</td><td><span class="chip ok">Uygulamada</span></td></tr>
+      <tr><td>22</td><td><b>Dönel kavşak ve sinyalli kontrol</b></td><td>Aynı ağda tüm kavşakların göbekli dönel kavşak olduğu durum ile sinyalli denetleyicilerin karşılaştırılması (AS8).</td><td>Gecikme, duruş, geri taşma</td><td>Ağ Simülasyonu → Ağ B: Dönel kavşak; Ağ deneyi</td><td><span class="chip ok">Uygulamada</span></td></tr>
+      <tr><td>23</td><td><b>Dönel kavşak kapasite kalibrasyonu</b></td><td>Simülasyondaki giriş kapasitesi–halka akımı ilişkisinin HCM modeliyle karşılaştırılması.</td><td>Giriş kapasitesi (taşıt/sa)</td><td>Yöntem bölüm 10'daki tablo</td><td><span class="chip ok">Uygulamada</span></td></tr>
+      <tr><td>24</td><td><b>Sola dönüş etkisi</b></td><td>Sola dönüş oranı arttıkça izinli dönüşün ve cep kapasitesinin sinyalli kavşak performansına etkisi.</td><td>Gecikme, geri taşma</td><td>Ağ Simülasyonu → sola dönüş kaydırıcısı + Ağ deneyi</td><td><span class="chip ok">Uygulamada</span></td></tr>
       <tr><td>21</td><td><b>Koordineli bulanık kontrol</b></td><td>Komşu kavşaktan gelen müfreze (platoon) bilgisini bulanık sisteme girdi olarak eklemek.</td><td>Arter ve ağ gecikmesi</td><td>Bulanık sisteme üçüncü girdi eklenerek</td><td><span class="chip todo">Önerilen</span></td></tr>
     </table></div>
   </section>
@@ -476,7 +503,7 @@
       <div class="card-head"><h2>Geçerlilik tehditleri</h2></div>
       <ul style="margin:0;padding-left:20px;font-size:14px">
         <li><b>İç geçerlilik:</b> Model basitleştirilmiştir (tek şerit, dönüş yok, homojen sürücü). Mutlak gecikme değerleri gerçeği birebir yansıtmaz, göreli karşılaştırmalar daha güvenilirdir.</li>
-        <li><b>Ağ modeli:</b> Sola dönen araç ile karşı yönden düz gelen araç arasındaki kavşak içi çatışma modellenmez ve dönüş cepleri yoktur. Yeşil dalga yalnızca doğu yönü için optimize edilmiştir.</li>
+        <li><b>Ağ modeli:</b> Her yönde tek şerit vardır (sinyalli kavşakta 30 m'lik sola dönüş cebiyle). Dönel kavşak tek şeritlidir ve yüksek halka akımında temkinlidir. Yayalar ve ağır taşıtlar modellenmez. Yeşil dalga yalnızca doğu yönü için optimize edilmiştir.</li>
         <li><b>Algılama varsayımı:</b> Bulanık ve Q-öğrenme denetleyicileri 90 m'lik yaklaşımdaki araç sayısını kusursuz bilir (kamera ya da çoklu dedektör varsayımı). Araç tetiklemeli yalnızca tek noktadaki dedektörü kullanır. Bu bilgi farkı sonuçlarda raporlanmalıdır.</li>
         <li><b>Aşırı uyum:</b> GA ve Q-öğrenme, eğitildikleri senaryo ve tohumlara uyum sağlayabilir. Bu nedenle test tohumları ayrıdır.</li>
         <li><b>Rakip yöntem ayarı:</b> Karşılaştırmanın adil olması için sabit süreli sinyal yerine Webster planı, araç tetiklemeli kontrol için de standart parametreler kullanılır.</li>
@@ -490,7 +517,7 @@
         <li>Literatür: bulanık sinyal kontrolü, genetik-bulanık sistemler, pekiştirmeli öğrenme</li>
         <li>Yöntem: simülasyon modeli, denetleyiciler, GA ve Q-öğrenme tasarımı</li>
         <li>Deney tasarımı: senaryolar, ölçütler, istatistiksel yöntem</li>
-        <li>Bulgular: izole kavşak (Analiz 1–13) ve ağ ölçeği (Analiz 17–20)</li>
+        <li>Bulgular: izole kavşak (Analiz 1–13), ağ ölçeği ve dönel kavşak (Analiz 17–20, 22–24)</li>
         <li>Tartışma: yorumlanabilirlik ve performans dengesi, geçerlilik tehditleri</li>
         <li>Sonuç ve gelecek çalışmalar: Analiz 14–16 ve 21</li>
       </ol>

@@ -9,7 +9,7 @@
 | Sekme | İçerik |
 |---|---|
 | **Simülatör** | Tek kavşak. Aynı rastgele araç akışı altında iki denetleyiciyi yan yana izleme. 9 senaryo ve 4 talep profili sunulur. Canlı bulanık çıkarım paneli ve düzenlenebilir kural tabanı vardır. |
-| **Ağ Simülasyonu** | Çok kavşaklı yol ağları: ana arter koridoru (1×3) ve 2×2, 2×3, 3×3 ızgaralar. Araçlar kavşaklarda sağa ya da sola döner. Kuyruklar önceki kavşağa taşabilir (geri taşma). Yeşil dalga (koordineli plan), iki ağın yan yana karşılaştırması ve ağlar arası toplu deney sunulur. |
+| **Ağ Simülasyonu** | Çok kavşaklı yol ağları: ana arter koridoru (1×3) ve 2×2, 2×3, 3×3 ızgaralar. Araçlar kavşaklarda sağa ya da sola döner. Kuyruklar önceki kavşağa taşabilir (geri taşma). Sola dönenler karşı akıma yol verir (izinli dönüş, 30 m dönüş cebi). Yeşil dalga (koordineli plan) ve göbekli dönel kavşak seçenekleri, iki ağın yan yana karşılaştırması, kavşağa yakınlaştırma ve ağlar arası toplu deney sunulur. |
 | **Deney Laboratuvarı** | Senaryo × denetleyici × tekrar biçiminde toplu deneyler. %95 güven aralığı, Holm düzeltmeli eşleştirilmiş t-testi, HCM hizmet düzeyi (LOS), çok ölçütlü sonuçlar, talep duyarlılık analizi ve CSV dışa aktarımı içerir. |
 | **Optimizasyon** | Genetik algoritmayla üyelik fonksiyonu ve kural tabanı arama. Ablasyon için üç mod vardır. Tablo tabanlı Q-öğrenme ajanı eğitilir ve politikası ısı haritasıyla gösterilir. Sonuçlar eğitim ve test tohumları ayrı tutularak raporlanır. |
 | **Yöntem ve Literatür** | Kuramsal temel, formüller, model varsayımları, deney tasarımı ve kaynakça. |
@@ -26,6 +26,7 @@
 | Bulanık + GA | Üyelik merkezleri ve kural sonuçları genetik algoritmayla optimize edilmiş bulanık sistem |
 | Q-öğrenme | 144 durum × 2 eylem (sürdür / değiştir) tablo tabanlı ajan |
 | Yeşil dalga (yalnız ağ) | Ortak döngü ve doğu yönü için ofset θ = x / v<sub>p</sub> mod C |
+| Dönel kavşak (yalnız ağ) | Sinyalsiz, göbekli tek şeritli halka. Girişte yol ver kuralı, kritik aralık 4,2 s, takip aralığı 2,2 s. HCM kapasite modeline göre kalibre edildi. |
 
 ## Örnek sonuç
 
@@ -46,19 +47,19 @@ GA ile ayarlanmış bulanık denetleyici, Holm düzeltmeli eşleştirilmiş t-te
 
 ### Ağ ölçeği
 
-4 ağ × 7 denetleyici × 5 tekrar, 20 dk simülasyon, 5 dk ısınma, %15 sola ve %15 sağa dönüş. Değerler yolculuk başına ortalama gecikmedir (s). Arter sütunu, ana arterde doğuya dönmeden geçen araçların gecikmesidir.
+4 ağ × 8 denetleyici × 5 tekrar, 20 dk simülasyon, 5 dk ısınma, %15 sola ve %15 sağa dönüş. Değerler yolculuk başına ortalama gecikmedir (s).
 
-| Ağ | Sabit | Webster | Yeşil dalga | Tetiklemeli | Bulanık | Bulanık+GA | Q-öğrenme | Arter: yeşil dalga / Bulanık+GA |
+| Ağ | Sabit | Webster | Yeşil dalga | Tetiklemeli | Bulanık | Bulanık+GA | Q-öğrenme | Dönel kavşak |
 |---|---|---|---|---|---|---|---|---|
-| Koridor 1×3 | 60,8 | 30,0 | 31,3 | 21,9 | 27,7 | **21,4** | 26,7 | **17,7** / 27,1 |
-| Izgara 2×2 | 35,0 | 38,8 | 33,9 | 28,2 | 35,7 | **26,1** | 31,4 | **21,8** / 24,2 |
-| Izgara 2×3 | 47,2 | 45,9 | 43,7 | 33,2 | 42,4 | **31,6** | 37,7 | **23,6** / 32,4 |
-| Izgara 3×3 | 51,2 | 44,3 | 49,6 | 38,7 | 48,9 | **35,2** | 44,5 | **23,4** / 32,7 |
+| Koridor 1×3 | 140,7 | 39,7 | 44,4 | 27,6 | 38,8 | 32,8 | 36,9 | 28,4 |
+| Izgara 2×2 | 60,1 | 65,5 | 48,9 | 32,9 | 49,0 | 36,8 | 41,4 | **26,3** |
+| Izgara 2×3 | 114,0 | 68,3 | 69,7 | 43,8 | 61,5 | 54,3 | 50,5 | **36,1** |
+| Izgara 3×3 | 73,4 | 57,0 | 63,9 | 43,1 | 63,8 | 46,1 | 54,5 | **33,2** |
 
-Bu sonuçlardan üç gözlem çıkıyor:
-- Tek kavşakta eğitilen GA-bulanık çözüm ağa aktarıldığında dört ağın hepsinde en düşük ağ gecikmesini verdi.
-- Yeşil dalga, koordine edilen arter yönündeki gecikmeyi yaklaşık yarıya indirdi, ancak ağ ortalamasında geride kaldı. Bu, koordinasyonun bilinen ödünleşimidir.
-- Elle tasarlanmış bulanık denetleyici en az geri taşma blokajını üretti.
+Bu sonuçlardan çıkan gözlemler:
+- **Sinyalli kavşaklar:** En iyisi araç tetiklemeli kontrol oldu. GA ile ayarlanmış bulanık denetleyici tek kavşakta eğitildiği için, sola dönüş etkileşimlerinin olduğu ağda onun gerisinde kaldı.
+- **Dönel kavşak (göbekli):** Izgaralarda en düşük gecikmeyi verdi ve geri taşmayı neredeyse sıfıra indirdi. Yoğun ana arter koridorunda araç tetiklemeli sinyalle aralarında anlamlı fark çıkmadı. Buna karşılık yolculuk başına duruş sayısı daha yüksek.
+- **Yeşil dalga:** Koordine edilen arter yönündeki gecikmeyi belirgin biçimde azalttı, ama ağ ortalamasında geride kaldı.
 
 Sonuçlar rastgele tohumlara ve GA koşusuna göre küçük farklılıklar gösterebilir.
 
@@ -79,7 +80,7 @@ Dosya doğrudan `file://` ile açılırsa hesaplamalar sayfa içinde, daha yava�
 index.html        Arayüz, yöntem metni ve analiz planı
 css/style.css     Stil
 js/engine.js      Tek kavşak simülasyon motoru, denetleyiciler, istatistik, GA ve Q-öğrenme (DOM'suz)
-js/net.js         Çok kavşaklı ağ motoru: geometri, rotalar, geri taşma, yeşil dalga
+js/net.js         Çok kavşaklı ağ motoru: geometri, rotalar, izinli sola dönüş, geri taşma, yeşil dalga, dönel kavşak
 js/worker.js      Ağır hesaplamalar için Web Worker
 js/app.js         Arayüz mantığı ve grafikler
 vendor/katex/     Formül gösterimi (KaTeX, MIT lisansı)

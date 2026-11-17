@@ -9,6 +9,17 @@ const B = root.BT, K = B.K, PH = B.PH;
 const HEAD = [[0, 1], [0, -1], [1, 0], [-1, 0]];   // yön indisi = yaklaşım indisi (0: güneye, 1: kuzeye, 2: doğuya, 3: batıya)
 const RIGHT = [3, 2, 0, 1], LEFT = [2, 3, 1, 0];
 const BOXW = 2 * K.BOX, ZONE = 90, VPROG = 12;     // kavşak içi geçiş, algılama bölgesi, yeşil dalga hızı (m/s)
+const OPP = [1, 0, 3, 2];                          // karşı yaklaşım
+const TC_LEFT = 4.5;                               // s, sinyalli kavşakta izinli sola dönüş kritik aralığı (HCM)
+const POCKET = 30, PCAP = 4;                       // m ve araç, sinyalli kavşakta sola dönüş cebi
+// Dönel kavşak (göbekli): tek şeritli halka, saat yönünün tersine dolaşım (sağdan trafik)
+const RB = { R: 9, ISLAND: 5.2, V: 8, TC: 4.2, TF: 2.2 };   // halka yarıçapı (m), göbek yarıçapı, halka hızı (m/s), kritik aralık ve takip aralığı (s)
+RB.P = 2 * Math.PI * RB.R; RB.DEL = Math.asin((K.LANEW / 2) / RB.R);
+const ARM_IN = [Math.PI / 2, 3 * Math.PI / 2, Math.PI, 0];   // yaklaşım i'nin kolu (matematik açısı, kuzey yukarı)
+const ARM_OUT = [3 * Math.PI / 2, Math.PI / 2, 0, Math.PI];  // çıkış yönü h'nin kolu
+const mod = (a, m) => ((a % m) + m) % m;
+const rbEntry = i => mod(ARM_IN[i] + RB.DEL, 2 * Math.PI) * RB.R;
+const rbExit = h => mod(ARM_OUT[h] - RB.DEL, 2 * Math.PI) * RB.R;
 
 const NETWORKS = [
   { id: 'koridor', name: 'Ana arter koridoru (1×3)', short: 'Koridor', cols: [0, 220, 480], rows: [0], ext: 140, main: 14, side: 5,
@@ -27,7 +38,8 @@ const NET_CONTROLLERS = [
   { id: 'actuated', name: 'Araç tetiklemeli', short: 'Tetiklemeli' },
   { id: 'fuzzy', name: 'Bulanık (Mamdani)', short: 'Bulanık' },
   { id: 'fuzzyga', name: 'Bulanık + GA', short: 'Bulanık+GA' },
-  { id: 'qlearn', name: 'Q-öğrenme', short: 'Q-öğrenme' }
+  { id: 'qlearn', name: 'Q-öğrenme', short: 'Q-öğrenme' },
+  { id: 'roundabout', name: 'Dönel kavşak (göbekli)', short: 'Dönel' }
 ];
 
 // ---------- Geometri ----------
@@ -57,13 +69,14 @@ class Node {
     this.id = id; this.r = r; this.c = c; this.x = x; this.y = y;
     this.inLinks = [null, null, null, null]; this.outLinks = [null, null, null, null];
     this.t = 0; this.phase = 0; this.state = 'green'; this.stateT = 0;
-    this.epoch = [0, 0, 0, 0]; this.lastDet = [-1e9, -1e9, -1e9, -1e9]; this.switches = 0; this.ctrl = null;
+    this.epoch = [0, 0, 0, 0]; this.lastDet = [-1e9, -1e9, -1e9, -1e9]; this.lastThru = [-1e9, -1e9, -1e9, -1e9]; this.switches = 0; this.ctrl = null;
+    this.kind = 'signal'; this.ring = []; this.lastEnt = [-1e9, -1e9, -1e9, -1e9];
   }
   count(i) { const lk = this.inLinks[i]; let n = lk.entry ? lk.pending.length : 0; const cs = lk.cars;
     for (let k = cs.length - 1; k >= 0; k--) { const s = cs[k].s; if (s >= lk.L) break; if (s > lk.L - ZONE) n++; } return n; }
   phaseCount(p) { let m = 0; for (let i = 0; i < 4; i++) if (PH[i] === p) { const c = this.count(i); if (c > m) m = c; } return m; }
   queued() { let n = 0; for (let i = 0; i < 4; i++) { const lk = this.inLinks[i]; if (lk.entry) n += lk.pending.length; for (const c of lk.cars) if (c.s < lk.L && c.s > lk.L - ZONE && c.v < 1.5) n++; } return n; }
-  sig(i) { if (PH[i] !== this.phase) return 'red'; return this.state === 'green' ? 'green' : this.state === 'yellow' ? 'yellow' : 'red'; }
+  sig(i) { if (this.kind === 'round') return 'none'; if (PH[i] !== this.phase) return 'red'; return this.state === 'green' ? 'green' : this.state === 'yellow' ? 'yellow' : 'red'; }
 }
 
 // ---------- Talep ve plan ----------
@@ -123,6 +136,7 @@ function ctrlCoord(o) {
     } };
 }
 function nodeCtrl(type, ctx, plan, wave) {
+  if (type === 'roundabout') return { kind: 'round', last: null, init() {}, onGreen() {}, update() { return false; } };
   if (type === 'webster') { const c = B.buildController('fixed', ctx); c.G = plan.G.slice(); return c; }
   if (type === 'greenwave') return ctrlCoord(wave);
   return B.buildController(type, ctx);
@@ -138,7 +152,7 @@ class Net {
     this.entries = this.links.filter(l => l.entry);
     for (const lk of this.entries) lk.rng = B.mulberry32(((seed * 2654435761) >>> 0) + lk.id * 97531);
     this.plan = netPlan(G, dem);
-    this.nodes.forEach((n, i) => { n.ctrl = nodeCtrl(type, ctx, this.plan.plans[i], this.plan.wave[i]); n.ctrl.init(n); });
+    this.nodes.forEach((n, i) => { n.ctrl = nodeCtrl(type, ctx, this.plan.plans[i], this.plan.wave[i]); n.ctrl.init(n); if (type === 'roundabout') n.kind = 'round'; });
     this.trips = 0; this.tripsAll = 0; this.sumDelay = 0; this.sumTT = 0; this.sumStops = 0; this.delays = [];
     this.eTrips = 0; this.eDelay = 0; this.eStops = 0;
     this.blocked = 0; this.maxQ = 0; this.sumQ = 0; this.nQ = 0; this.nextQ = 0;
@@ -151,6 +165,30 @@ class Net {
     c.turn = h === lk.head ? 0 : h === LEFT[lk.head] ? -1 : 1; if (c.turn) c.east = false;
     return n.outLinks[h];
   }
+  // Sinyalli kavşak: sola dönen araç karşı yönden gelen düz/sağa dönen trafiğe yol verir
+  leftBlocked(node, lk, t) {
+    const o = OPP[lk.head]; if (t - node.lastThru[o] < 2.0) return true;
+    const ol = node.inLinks[o];
+    for (let k = 0; k < ol.cars.length; k++) { const c2 = ol.cars[k]; if (c2.s >= ol.L) continue;
+      const d = ol.L - c2.s; if (d > 80) break;
+      if (c2.pocket) continue;                       // karşı cepte bekleyen sola dönen akışı engellemez
+      if (c2.turn === -1) break;                     // cebe giremeyen sola dönen, arkasındakileri tutar
+      if (d < 8 || (c2.v > 1 && d / c2.v < TC_LEFT)) return true; }
+    return false;
+  }
+  // Dönel kavşak: girişte halkadaki araca yol ver (kritik aralık) ve halkada yer olsun
+  oppMoving(node, lk) { const ol = node.inLinks[OPP[lk.head]];
+    for (const c2 of ol.cars) { if (c2.s >= ol.L || c2.pocket) continue; const d = ol.L - c2.s; if (d > 30) break; if (c2.v > 1) return true; } return false; }
+  gapOK(node, i, c) {
+    if (this.t - node.lastEnt[i] < RB.TF) return false;   // ardışık girişler arası takip aralığı
+    const pe = rbEntry(i);
+    if (node.ring.length >= Math.floor(RB.P / K.JAM) - 1) return false;
+    for (const c of node.ring) {
+      const ahead = mod(c.p - pe, RB.P); if (ahead < K.JAM + 0.5) return false;
+      const du = mod(pe - c.p, RB.P); if (du < c.rem && du / Math.max(c.v, 2) < RB.TC) return false;
+    }
+    return true;
+  }
   step(dt) {
     const t = this.t;
     for (const n of this.nodes) n.t = t;
@@ -161,7 +199,7 @@ class Net {
         const last = lk.cars[lk.cars.length - 1];
         if (!last || last.s >= K.JAM + 0.3) {
           const p = lk.pending.shift(), gap = last ? last.s - K.JAM : 1e9, v = Math.min(K.VMAX, Math.sqrt(2 * K.DEC * Math.max(0, gap)));
-          const c = { s: 0, v, tg: p.tg, react: 0, stopped: v < 0.1, ep: -1, go: false, stops: v < 0.1 ? 1 : 0, dist: 0, hops: 0, rng: B.mulberry32(p.seed), next: null, turn: 0, fx: 0, fy: 0, east: lk.head === 2 };
+          const c = { s: 0, v, tg: p.tg, react: 0, stopped: v < 0.1, ep: -1, go: false, stops: v < 0.1 ? 1 : 0, dist: 0, hops: 0, rng: B.mulberry32(p.seed), next: null, turn: 0, fx: 0, fy: 0, fh: -1, east: lk.head === 2, pocket: false, inRing: false, p: 0, rem: 0, nv: 0, ds: 0, ringLen: 0 };
           c.next = this.chooseNext(c, lk); lk.cars.push(c);
         }
       }
@@ -169,25 +207,64 @@ class Net {
     // hareket
     for (const lk of this.links) {
       const cars = lk.cars, node = lk.to, green = node ? (node.state === 'green' && PH[lk.head] === node.phase) : true;
+      const sig = node && node.kind === 'signal';
+      let lastMain = 1e9, lastPocket = 1e9, nPocket = 0;
       for (let k = 0; k < cars.length; k++) {
         const c = cars[k];
-        let lim = k > 0 ? cars[k - 1].s - K.JAM : 1e9;
+        if (sig && !c.pocket && c.turn === -1 && lk.L - c.s < POCKET && nPocket < PCAP && lastPocket - c.s >= K.JAM - 0.5) c.pocket = true;
+        let lim = (c.pocket ? lastPocket : Math.min(lastMain, c.turn === -1 && lk.L - c.s < POCKET + 2 ? lastPocket : 1e9)) - K.JAM;
+        if (!sig && k > 0) lim = cars[k - 1].s - K.JAM;
+        const pocketFront = c.pocket && nPocket === 0;
+        let vmx = K.VMAX;
         if (node && c.s < lk.L) {
-          if (!green) {
-            if (c.ep !== node.epoch[lk.head]) { c.ep = node.epoch[lk.head]; c.go = (lk.L - c.s) < c.v * c.v / (2 * K.BMAX); }
+          const dl = lk.L - c.s;
+          if (node.kind === 'round') {
+            if (dl < 35) vmx = RB.V + (K.VMAX - RB.V) * dl / 35;           // girişe yaklaşırken yavaşla
+            if (k === 0 && dl < 20 && !this.gapOK(node, lk.head, c)) lim = Math.min(lim, lk.L - 0.05);
+          } else if (!green) {
+            if (c.ep !== node.epoch[lk.head]) { c.ep = node.epoch[lk.head]; c.go = dl < c.v * c.v / (2 * K.BMAX); }
+            // sarıda cepteki ilk araç, karşı akım durmuşsa dönüşünü tamamlar
+            if (!c.go && pocketFront && dl < 2 && node.state === 'yellow' && PH[lk.head] === node.phase && !this.oppMoving(node, lk)) c.go = true;
             if (!c.go) lim = Math.min(lim, lk.L - 0.05);
-          } else if (lk.L - c.s < 25) {
+          } else if (dl < 25) {
             const nl = c.next, tail = nl.cars[nl.cars.length - 1];
             if (tail && tail.s < K.JAM - BOXW + 0.5) { lim = Math.min(lim, lk.L - 0.05); if (c.v < 0.5 && t >= this.warm) this.blocked += dt; }
+            else if (c.turn === -1 && (c.pocket ? pocketFront : lastMain > 1e8 && lastPocket > 1e8) && this.leftBlocked(node, lk, t)) { lim = Math.min(lim, lk.L - 0.05); if (dl < 15) vmx = Math.min(vmx, 6); }
+            else if (c.turn !== 0) vmx = Math.min(vmx, 7 + dl * 0.3);      // dönüşte yavaşla
           }
         }
         const gap = lim - c.s; let v;
         if (gap <= 0.3) { v = 0; c.react = 0; }
         else if (c.stopped) { c.react += dt; if (c.react >= K.REACT - 1e-9) { c.stopped = false; c.react = 0; v = Math.min(K.ACC * dt, Math.sqrt(2 * K.DEC * gap)); } else v = 0; }
-        else v = Math.min(c.v + K.ACC * dt, K.VMAX, Math.sqrt(2 * K.DEC * gap));
+        else { let vt = Math.min(c.v + K.ACC * dt, K.VMAX); if (vt > vmx) vt = Math.max(vmx, c.v - K.DEC * dt); v = Math.min(vt, Math.sqrt(2 * K.DEC * gap)); }
         if (v < 0.05) { v = 0; if (!c.stopped) { c.stopped = true; c.react = 0; c.stops++; } }
         c.s += Math.min((c.v + v) * 0.5 * dt, Math.max(0, gap)); c.v = v;
         if (node && c.s >= lk.L - K.DET - 1 && c.s - K.CARLEN <= lk.L - K.DET + 1) node.lastDet[lk.head] = t;
+        if (c.pocket) { lastPocket = c.s; nPocket++; } else lastMain = c.s;
+      }
+      if (sig && nPocket) { for (let k = 1; k < cars.length; k++) if (cars[k].s > cars[k - 1].s) { cars.sort((a, b) => b.s - a.s); break; } }
+    }
+    // dönel kavşak halkaları
+    const ringOut = [];
+    for (const n of this.nodes) {
+      if (n.kind !== 'round' || !n.ring.length) continue;
+      const ring = n.ring;
+      for (const c of ring) {
+        let gl = 1e9;
+        for (const o of ring) if (o !== c) { const d = mod(o.p - c.p, RB.P); if (d > 0.01 && d - K.JAM < gl) gl = d - K.JAM; }
+        const nl = c.next, tail = nl.cars[nl.cars.length - 1];
+        let gap = gl;
+        if (tail && tail.s < K.JAM) { gap = Math.min(gap, c.rem - 0.05); if (c.v < 0.5 && t >= this.warm) this.blocked += dt; }
+        let v;
+        if (gap <= 0.3) { v = 0; c.react = 0; }
+        else if (c.stopped) { c.react += dt; if (c.react >= K.REACT - 1e-9) { c.stopped = false; c.react = 0; v = Math.min(K.ACC * dt, Math.sqrt(2 * K.DEC * gap)); } else v = 0; }
+        else v = Math.min(c.v + K.ACC * dt, RB.V, Math.sqrt(2 * K.DEC * gap));
+        if (v < 0.05) { v = 0; if (!c.stopped) { c.stopped = true; c.react = 0; c.stops++; } }
+        c.nv = v; c.ds = Math.min((c.v + v) * 0.5 * dt, Math.max(0, gap));
+      }
+      for (let k = ring.length - 1; k >= 0; k--) {
+        const c = ring[k]; c.v = c.nv; c.p = mod(c.p + c.ds, RB.P); c.rem -= c.ds;
+        if (c.rem <= 0) { ring.splice(k, 1); ringOut.push([n, c]); }
       }
     }
     // bağlantılar arası geçiş ve çıkış
@@ -200,18 +277,33 @@ class Net {
           if (c.tg >= this.warm) { const tt = t + dt - c.tg, d = Math.max(0, tt - c.dist / K.VMAX); this.trips++; this.sumDelay += d; this.sumTT += tt; this.sumStops += c.stops; this.delays.push(d); if (c.east) { this.eTrips++; this.eDelay += d; this.eStops += c.stops; } }
           continue;
         }
+        const node = lk.to;
+        if (node.kind === 'round') { // halkaya gir
+          c.dist += lk.L; c.inRing = true;
+          c.p = mod(rbEntry(lk.head) + (c.s - lk.L), RB.P); c.rem = mod(rbExit(c.next.head) - c.p, RB.P); if (c.rem < 1) c.rem += RB.P;
+          c.ringLen = c.rem + (K.BOX - RB.R) * 2; c.v = Math.min(c.v, RB.V); c.ep = -1; c.go = false;
+          c.pocket = false; node.lastEnt[lk.head] = t; node.ring.push(c); continue;
+        }
         const u = HEAD[lk.head], rn = [-u[1], u[0]];
-        c.fx = lk.x0 + u[0] * lk.L + rn[0] * K.LANEW / 2; c.fy = lk.y0 + u[1] * lk.L + rn[1] * K.LANEW / 2;
+        c.fx = lk.x0 + u[0] * lk.L + rn[0] * K.LANEW / 2; c.fy = lk.y0 + u[1] * lk.L + rn[1] * K.LANEW / 2; c.fh = lk.head;
+        if (c.turn !== -1) node.lastThru[lk.head] = t;
         c.dist += lk.L + BOXW;
         const nl = c.next, tail = nl.cars[nl.cars.length - 1];
         let ns = c.s - lk.L - BOXW; if (tail && ns > tail.s - K.JAM) ns = tail.s - K.JAM;
-        c.s = ns; c.ep = -1; c.go = false; c.hops++;
+        c.s = ns; c.ep = -1; c.go = false; c.hops++; c.pocket = false;
         c.next = this.chooseNext(c, nl); nl.cars.push(c);
       }
+    }
+    for (const [n, c] of ringOut) { // halkadan çık
+      const nl = c.next, tail = nl.cars[nl.cars.length - 1];
+      c.dist += c.ringLen; c.inRing = false; c.hops++;
+      let ns = Math.min(-c.rem, 2); if (tail && ns > tail.s - K.JAM) ns = tail.s - K.JAM;
+      c.s = ns; c.fh = -1; c.next = this.chooseNext(c, nl); nl.cars.push(c);
     }
     if (t >= this.nextQ) { this.nextQ += 1; if (t >= this.warm) { const q = this.queued(); if (q > this.maxQ) this.maxQ = q; this.sumQ += q; this.nQ++; } }
     // sinyaller
     for (const n of this.nodes) {
+      if (n.kind === 'round') continue;
       if (n.ctrl.tick) n.ctrl.tick(n, dt);
       n.stateT += dt;
       if (n.state === 'green') { if (n.ctrl.update(n)) { n.state = 'yellow'; n.stateT = 0; n.switches++; for (let i = 0; i < 4; i++) if (PH[i] === n.phase) n.epoch[i]++; } }
@@ -221,13 +313,14 @@ class Net {
     this.t += dt;
   }
   queued() { let n = 0; for (const lk of this.links) { if (lk.entry) n += lk.pending.length; if (lk.to) for (const c of lk.cars) if (c.s < lk.L && c.v < 1.5) n++; } return n; }
-  inNet() { let n = 0; for (const lk of this.links) { n += lk.cars.length; if (lk.entry) n += lk.pending.length; } return n; }
+  inNet() { let n = 0; for (const lk of this.links) { n += lk.cars.length; if (lk.entry) n += lk.pending.length; } for (const nd of this.nodes) n += nd.ring.length; return n; }
   avgDelay() {
     let tot = this.sumDelay, n = this.trips;
     for (const lk of this.links) {
       for (const c of lk.cars) if (c.tg >= this.warm) { tot += Math.max(0, this.t - c.tg - Math.max(0, c.dist + c.s) / K.VMAX); n++; }
       if (lk.entry) for (const p of lk.pending) if (p.tg >= this.warm) { tot += this.t - p.tg; n++; }
     }
+    for (const nd of this.nodes) for (const c of nd.ring) if (c.tg >= this.warm) { tot += Math.max(0, this.t - c.tg - c.dist / K.VMAX); n++; }
     return n ? tot / n : 0;
   }
   metrics() {
@@ -261,5 +354,5 @@ function* taskNetLab(cfg) {
   return res;
 }
 
-Object.assign(B, { NETWORKS, NET_CONTROLLERS, HEAD, BOXW, Net, netGeometry: geometry, netPlan, demandFor, runNet, taskNetLab });
+Object.assign(B, { NETWORKS, NET_CONTROLLERS, HEAD, BOXW, RB, ARM_IN, ARM_OUT, Net, netGeometry: geometry, netPlan, demandFor, runNet, taskNetLab });
 })(typeof self !== 'undefined' ? self : this);
