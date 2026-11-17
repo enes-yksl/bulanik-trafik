@@ -3,586 +3,402 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bulanık Mantıkla Trafik Işığı Kontrolü — Simülatör</title>
+<title>Bulanık Trafik — Bulanık Mantıkla Uyarlanabilir Sinyal Kontrolü</title>
+<meta name="description" content="Bulanık mantık, genetik algoritma ve Q-öğrenme ile izole kavşakta uyarlanabilir trafik sinyali kontrolü: etkileşimli simülatör, deney laboratuvarı ve akademik dayanak.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-:root{
-  --bg:#f5f4ef; --panel:#ffffff; --ink:#1b1c1e; --muted:#6a6d72; --line:#e2e0d8; --soft:#f0eee8;
-  --fuzzy:#0d7a84; --fixed:#c25e1c; --red:#d43a3a; --amber:#e3a21a; --go:#1f9d55;
-  --road:#3b3e44; --grass:#dfe5d4; --mark:#f4f4f4;
-  --s1:#a9cdd2; --s2:#5fa9b1; --s3:#1d7f89; --s4:#0b4d54;
-}
-@media (prefers-color-scheme: dark){
-  :root{
-    --bg:#131417; --panel:#1b1d21; --ink:#ebebea; --muted:#9a9ea4; --line:#2b2e34; --soft:#22252a;
-    --fuzzy:#3cb6c0; --fixed:#ec8a46; --red:#ef5a5a; --amber:#f0b43a; --go:#3ccf7c;
-    --road:#33363c; --grass:#1d261f; --mark:#cdcdcd;
-    --s1:#2c5a60; --s2:#3c8a93; --s3:#5fc0c9; --s4:#a6e3e8;
-  }
-}
-*{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:15px;line-height:1.5}
-.wrap{max-width:1180px;margin:0 auto;padding:28px 20px 60px}
-.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--fuzzy)}
-h1{font-size:28px;line-height:1.2;margin:6px 0 8px;font-weight:600;letter-spacing:-.01em}
-h2{font-size:16px;margin:0;font-weight:600}
-.lead{color:var(--muted);max-width:780px;margin:0 0 22px}
-.card,.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
-.panel{margin-bottom:16px}
-.row{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}
-button,select{font:inherit;font-size:14px;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer}
-button:hover{border-color:var(--muted)}
-button.primary{background:var(--fuzzy);border-color:var(--fuzzy);color:#fff}
-button:disabled{opacity:.5;cursor:default}
-label.inline{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:14px}
-label.check{display:flex;gap:8px;align-items:center;font-size:14px}
-.clock{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--muted)}
-.clock b{color:var(--ink);font-weight:500}
-.sliders{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 24px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
-.sl{display:grid;grid-template-columns:118px 1fr 64px;align-items:center;gap:10px;font-size:14px}
-.sl span{color:var(--muted)}
-.sl output{font-family:"IBM Plex Mono",monospace;font-size:13px;text-align:right}
-input[type=range]{width:100%;accent-color:var(--fuzzy)}
-.sims{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.card-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.card-head .sub{color:var(--muted);font-size:13px;margin-left:auto}
-.dot{width:10px;height:10px;border-radius:50%}
-.fuzzy .dot{background:var(--fuzzy)} .fixed .dot{background:var(--fixed)}
-.phase{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--muted);display:flex;gap:6px;align-items:center}
-.lamp{width:9px;height:9px;border-radius:50%;display:inline-block}
-canvas{display:block;width:100%}
-.simcv{border-radius:8px}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
-.tile{background:var(--soft);border-radius:8px;padding:8px 10px}
-.tile .k{font-size:12px;color:var(--muted)}
-.tile .v{font-family:"IBM Plex Mono",monospace;font-size:19px;font-weight:500}
-.tile .v small{font-size:12px;color:var(--muted);font-weight:400}
-.decision{margin-top:10px;font-size:13px;color:var(--muted);min-height:20px}
-.decision b{color:var(--ink);font-weight:500}
-.verdict{margin:16px 0;padding:12px 16px;border-radius:10px;background:var(--panel);border:1px solid var(--line);font-size:15px}
-.verdict b{font-weight:600}
-section.card{margin-top:16px}
-.fz-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px 22px}
-.fz-title{font-size:13px;color:var(--muted);margin-bottom:4px}
-.fz-title b{color:var(--ink);font-weight:500}
-table.rules{width:100%;border-collapse:separate;border-spacing:5px}
-table.rules th{font-size:12.5px;color:var(--muted);font-weight:500;text-align:center;padding:2px}
-table.rules th.rh{text-align:right;padding-right:6px}
-table.rules td button{width:100%;padding:8px 4px;border-radius:8px;display:flex;flex-direction:column;align-items:center;gap:1px;background:transparent}
-table.rules .lab{font-weight:600;font-size:14px}
-table.rules .w{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--muted)}
-.hint{font-size:12.5px;color:var(--muted);margin-top:6px}
-.legend{display:flex;gap:16px;font-size:13px;color:var(--muted)}
-.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:6px}
-.progress{flex:1;min-width:140px;height:6px;background:var(--soft);border-radius:4px;overflow:hidden}
-.progress div{height:100%;width:0;background:var(--fuzzy);transition:width .15s}
-#gaStatus{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--muted);min-width:220px}
-.ga-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:22px;margin-top:14px}
-.res-row{display:grid;grid-template-columns:1fr 70px;gap:8px;align-items:center;margin:8px 0}
-.res-row .nm{font-size:13.5px}
-.res-row .bar{height:8px;border-radius:4px;margin-top:4px}
-.res-row .val{font-family:"IBM Plex Mono",monospace;font-size:13.5px;text-align:right}
-.muted{color:var(--muted)}
-p.muted{margin:0 0 12px;font-size:14px}
-details summary{cursor:pointer;font-weight:600}
-details ul{margin:10px 0 0;padding-left:20px;color:var(--muted);font-size:14px}
-details li{margin:4px 0}
-details li b{color:var(--ink);font-weight:500}
-@media (max-width:900px){.sliders{grid-template-columns:1fr 1fr}}
-@media (max-width:760px){.sims,.fz-grid,.ga-grid{grid-template-columns:1fr}.sliders{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}h1{font-size:23px}}
-</style>
+<link rel="stylesheet" href="vendor/katex/katex.min.css">
+<link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div class="wrap">
-  <div class="eyebrow">Bulanık çıkarım · Mamdani · Genetik optimizasyon</div>
-  <h1>Bulanık mantıkla trafik ışığı kontrolü</h1>
-  <p class="lead">Aynı araç akışı iki özdeş kavşağa gönderilir. Soldaki kavşakta bulanık çıkarım sistemi kuyruklara bakarak yeşil süreyi uzatır ya da fazı değiştirir. Sağdaki kavşak sabit süreli çalışır. Kural tablosundaki hücrelere tıklayarak kuralları değiştirebilir, genetik algoritmayla üyelik fonksiyonlarını ve kural tabanını otomatik optimize edebilirsiniz.</p>
+<header class="top"><div class="top-in">
+  <div class="brand">
+    <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect x="8" y="1.5" width="14" height="27" rx="5" fill="var(--ink)"/><circle cx="15" cy="8" r="3.2" fill="var(--red)"/><circle cx="15" cy="15" r="3.2" fill="var(--amber)"/><circle cx="15" cy="22" r="3.2" fill="var(--go)"/></svg>
+    <div><div class="t">Bulanık Trafik</div><div class="s">Bulanık mantıkla uyarlanabilir sinyal kontrolü</div></div>
+  </div>
+  <nav class="tabs" id="tabs">
+    <a href="#simulator" data-v="simulator">Simülatör</a>
+    <a href="#lab" data-v="lab">Deney Laboratuvarı</a>
+    <a href="#optimize" data-v="optimize">Optimizasyon</a>
+    <a href="#method" data-v="method">Yöntem ve Literatür</a>
+    <a href="#analyses" data-v="analyses">Analizler</a>
+  </nav>
+</div></header>
 
-  <div class="panel">
+<main>
+<!-- =================== SİMÜLATÖR =================== -->
+<section class="view" id="v-simulator">
+  <div class="eyebrow">Etkileşimli simülatör</div>
+  <h1>İki denetleyiciyi aynı trafikte yan yana izleyin</h1>
+  <p class="lead">İki özdeş kavşağa aynı rastgele araç akışı gönderilir. Her kavşak için bir denetleyici seçin, senaryoyu ya da talebi değiştirin ve gecikmeyi, kuyrukları ve bulanık çıkarımın her adımını canlı izleyin.</p>
+
+  <div class="card">
     <div class="row">
       <button id="play" class="primary">Duraklat</button>
       <button id="reset">Sıfırla</button>
-      <label class="inline">Hız
-        <select id="speed"><option value="1">1×</option><option value="2">2×</option><option value="4" selected>4×</option><option value="8">8×</option><option value="16">16×</option></select>
-      </label>
-      <label class="inline">Senaryo
-        <select id="preset">
-          <option value="dengeli">Dengeli akış</option>
-          <option value="ana">Ana yol yoğun (K–G)</option>
-          <option value="zirve">Zirve saati</option>
-          <option value="asim">Asimetrik akış</option>
-          <option value="ozel" hidden>Özel</option>
-        </select>
-      </label>
-      <label class="check"><input type="checkbox" id="dyn"> Dalgalı talep (yoğunluk yönler arasında kayar)</label>
+      <label class="inline">Hız <select id="speed"><option value="1">1×</option><option value="2">2×</option><option value="4" selected>4×</option><option value="8">8×</option><option value="16">16×</option><option value="32">32×</option></select></label>
+      <label class="inline">Senaryo <select id="scSel"></select></label>
+      <label class="inline">Talep profili <select id="profSel"></select></label>
       <div class="clock">Simülasyon zamanı <b id="clock">00:00</b></div>
     </div>
+    <div class="row" style="margin-top:10px">
+      <label class="inline"><span class="dot" id="dotL"></span>Sol kavşak <select id="ctlL"></select></label>
+      <label class="inline"><span class="dot" id="dotR"></span>Sağ kavşak <select id="ctlR"></select></label>
+    </div>
+    <div class="scdesc" id="scDesc"></div>
     <div class="sliders" id="sliders"></div>
   </div>
 
-  <div class="sims">
-    <article class="card fuzzy">
-      <div class="card-head"><span class="dot"></span><h2>Bulanık kontrol</h2><span class="phase" id="phF"></span></div>
-      <canvas id="cvF" class="simcv" data-h="sq"></canvas>
-      <div class="stats" id="stF"></div>
-      <div class="decision" id="decF"></div>
+  <div class="grid2" style="margin-top:16px">
+    <article class="card">
+      <div class="card-head"><span class="dot" id="hdL"></span><h2 id="nmL"></h2><span class="phase" id="phL"></span></div>
+      <canvas id="cvL" class="simcv" data-h="sq"></canvas>
+      <div class="stats" id="stL"></div>
+      <div class="decision" id="decL"></div>
     </article>
-    <article class="card fixed">
-      <div class="card-head"><span class="dot"></span><h2>Sabit süreli kontrol</h2><span class="phase" id="phX"></span></div>
-      <canvas id="cvX" class="simcv" data-h="sq"></canvas>
-      <div class="stats" id="stX"></div>
-      <div class="decision" id="decX"></div>
+    <article class="card">
+      <div class="card-head"><span class="dot" id="hdR"></span><h2 id="nmR"></h2><span class="phase" id="phR"></span></div>
+      <canvas id="cvR" class="simcv" data-h="sq"></canvas>
+      <div class="stats" id="stR"></div>
+      <div class="decision" id="decR"></div>
     </article>
   </div>
 
   <div class="verdict" id="verdict">Simülasyon ısınıyor…</div>
 
   <section class="card">
-    <div class="card-head"><h2>Canlı bulanık çıkarım</h2><span class="sub">Bulanık kavşağın anlık durumu · Mamdani (min–max, ağırlık merkezi)</span></div>
+    <div class="card-head"><h2>Canlı bulanık çıkarım</h2><span class="sub" id="fzSrc"></span></div>
     <div class="fz-grid">
       <div><div class="fz-title">Girdi 1 · <b>Yeşil yöndeki araç sayısı</b> <span id="vG"></span></div><canvas id="mfG" data-h="150"></canvas></div>
       <div><div class="fz-title">Girdi 2 · <b>Kırmızı yöndeki araç sayısı</b> <span id="vR"></span></div><canvas id="mfR" data-h="150"></canvas></div>
       <div><div class="fz-title">Çıktı · <b>Yeşil uzatma süresi (s)</b> <span id="vO"></span></div><canvas id="mfO" data-h="150"></canvas></div>
       <div>
-        <div class="fz-title"><b>Kural tabanı</b> · hücre rengi = kuralın ateşlenme derecesi</div>
+        <div class="fz-title"><b>Kural tabanı</b> · hücre rengi kuralın ateşlenme derecesini gösterir</div>
         <table class="rules" id="rules"></table>
-        <div class="hint">Bir hücreye tıklayınca sonucu değişir (Sıfır → Kısa → Orta → Uzun). <button id="rulesReset" style="padding:3px 9px;font-size:12.5px;margin-left:4px">Varsayılana dön</button></div>
+        <div class="hint">Hücreye tıklayınca kuralın sonucu değişir (Sıfır → Kısa → Orta → Uzun). Değişiklik deney laboratuvarında da kullanılır. <button id="rulesReset" class="small">Varsayılana dön</button></div>
       </div>
     </div>
   </section>
 
   <section class="card">
-    <div class="card-head"><h2>Kuyruktaki toplam araç</h2>
-      <div class="legend" style="margin-left:auto"><span><i style="background:var(--fuzzy)"></i>Bulanık</span><span><i style="background:var(--fixed)"></i>Sabit süreli</span></div>
-    </div>
+    <div class="card-head"><h2>Kuyruktaki toplam araç</h2><div class="legend right" id="qLegend"></div></div>
     <canvas id="cvQ" data-h="190"></canvas>
   </section>
+</section>
 
-  <section class="card">
-    <div class="card-head"><h2>Genetik algoritma ile optimizasyon</h2></div>
-    <p class="muted">GA, iki girdinin 3'er ve çıktının 4 üyelik fonksiyonu merkezini ve 9 kuralın sonucunu birlikte arar. Her birey, seçili senaryoda 720 s'lik iki farklı rastgele araç akışıyla ekransız simüle edilir. Uygunluk değeri araç başına ortalama gecikmedir (düşük olan iyidir). Adil bir karşılaştırma için sabit süreli sinyalin en iyi yeşil süresi de 10–60 s aralığında taranır.</p>
-    <div class="row">
-      <label class="inline">Popülasyon <select id="gaPop"><option>12</option><option selected>20</option><option>30</option></select></label>
-      <label class="inline">Nesil <select id="gaGen"><option>8</option><option selected>15</option><option>25</option></select></label>
-      <button id="gaRun" class="primary">Optimizasyonu başlat</button>
-      <div class="progress"><div id="gaBar"></div></div>
-      <span id="gaStatus">Hazır</span>
+<!-- =================== DENEY LABORATUVARI =================== -->
+<section class="view" id="v-lab">
+  <div class="eyebrow">Deney laboratuvarı</div>
+  <h1>Denetleyicileri senaryolar üzerinde istatistiksel olarak karşılaştırın</h1>
+  <p class="lead">Her senaryo × denetleyici kombinasyonu birden çok kez, farklı rastgele tohumlarla ve ekransız olarak simüle edilir. Tüm denetleyiciler aynı tohumları kullanır (ortak rastgele sayılar). Böylece farklar eşleştirilmiş t-testiyle sınanabilir. Hesaplama arka planda çalışır, sayfa donmaz.</p>
+
+  <div class="card">
+    <div class="card-head"><h2>Deney tasarımı</h2></div>
+    <div class="grid2">
+      <div class="fieldset"><div class="lg">Senaryolar <button class="small ghost" data-all="labSc">Tümü / hiçbiri</button></div><div class="checks c2" id="labSc"></div></div>
+      <div class="fieldset"><div class="lg">Denetleyiciler <button class="small ghost" data-all="labCt">Tümü / hiçbiri</button></div><div class="checks c2" id="labCt"></div>
+        <div class="hint" id="labCtNote"></div></div>
     </div>
-    <div class="ga-grid">
-      <div>
-        <div class="fz-title"><b>Yakınsama</b> · nesil başına en iyi ve ortalama gecikme</div>
-        <canvas id="cvGA" data-h="210"></canvas>
-        <div class="legend" style="margin-top:6px"><span><i style="background:var(--fuzzy)"></i>En iyi birey</span><span><i style="background:var(--muted)"></i>Popülasyon ort.</span><span><i style="background:var(--fixed)"></i>En iyi sabit süre</span></div>
+    <div class="row" style="margin-top:14px">
+      <label class="inline">Tekrar <select id="labReps"><option>5</option><option selected>10</option><option>20</option><option>30</option></select></label>
+      <label class="inline">Süre <select id="labDur"><option value="900">15 dk</option><option value="1800" selected>30 dk</option><option value="3600">60 dk</option></select></label>
+      <label class="inline">Isınma <select id="labWarm"><option value="0">yok</option><option value="300" selected>5 dk</option><option value="600">10 dk</option></select></label>
+      <label class="inline">Referans <select id="labRef"></select></label>
+      <button id="labRun" class="primary">Deneyi çalıştır</button>
+      <button id="labStop" class="ghost" disabled>Durdur</button>
+    </div>
+    <div class="row" style="margin-top:12px"><div class="progress"><div id="labBar"></div></div><span class="status" id="labStatus">Hazır</span></div>
+  </div>
+
+  <section class="card" id="labResults">
+    <div class="card-head"><h2>Sonuçlar</h2>
+      <div class="row right">
+        <label class="inline">Ölçüt <select id="labMetric">
+          <option value="delay">Ortalama gecikme (s/araç)</option>
+          <option value="p95">95. persentil gecikme (s)</option>
+          <option value="stops">Araç başına duruş</option>
+          <option value="thru">Geçen araç (ta/sa)</option>
+          <option value="maxQ">En büyük kuyruk (araç)</option>
+          <option value="meanQ">Ortalama kuyruk (araç)</option>
+        </select></label>
+        <label class="check"><input type="checkbox" id="labLog"> Logaritmik eksen</label>
+        <button id="csvDl" class="small">CSV indir</button>
+        <button id="csvCp" class="small">CSV kopyala</button>
       </div>
-      <div id="gaResults"><div class="fz-title"><b>Sonuçlar</b></div><p class="muted">Optimizasyonu başlattığınızda dört kontrolcü burada aynı koşullarda karşılaştırılır.</p></div>
+    </div>
+    <div id="labEmpty" class="empty">Henüz deney çalıştırılmadı. Yukarıdan senaryo ve denetleyicileri seçip "Deneyi çalıştır" düğmesine basın.</div>
+    <div id="labBody" style="display:none">
+      <div class="kpis" id="labKpis"></div>
+      <div class="legend" id="labLegend" style="margin-bottom:6px"></div>
+      <canvas id="cvLab" data-h="320"></canvas>
+      <h3>Ortalama ± %95 güven aralığı</h3>
+      <div class="tbl-wrap"><table class="data" id="labTable"></table></div>
+      <h3>Anlamlılık testi</h3>
+      <p class="hint" id="sigNote"></p>
+      <div class="tbl-wrap"><table class="data" id="sigTable"></table></div>
     </div>
   </section>
 
   <section class="card">
-    <details>
-      <summary>Model ve yöntem</summary>
-      <ul>
-        <li><b>Girdiler:</b> Her fazın iki kolundan araç sayısı büyük olanı alınır. Sayıma dur çizgisine kadar olan 90 m'deki araçlar ve kavşağa giremeyip sırada bekleyenler girer.</li>
-        <li><b>Çıkarım:</b> Mamdani tipi. VE işlemi için min, kural birleştirme için max, durulaştırma için ağırlık merkezi kullanılır. Üyelik fonksiyonları üçgen/omuz biçiminde, komşu kümelerin toplamı 1 olacak şekilde (Ruspini bölüntüsü) tanımlıdır.</li>
-        <li><b>Karar mantığı:</b> En az 7 s yeşilden sonra sistem değerlendirilir. Çıktı 1,5 s'nin altındaysa faz değişir, değilse yeşil çıktı kadar uzatılıp tekrar değerlendirilir. Kırmızı yönde araç yoksa yeşil devam eder. Maksimum yeşil süresi aşılamaz.</li>
-        <li><b>Araç modeli:</b> Hız sınırı 50 km/sa, ivmelenme 2 m/s², sürücü tepki süresi 1 s, araçlar arası durma mesafesi 7 m. Araçlar düz gider. Sarı ışık 3 s, ardından 2 s tüm yönler kırmızıdır. Varışlar Poisson sürecidir ve iki kavşakta aynı rastgele tohumla üretilir.</li>
-        <li><b>Genetik algoritma:</b> Gerçel kodlu merkezler ve tamsayı kodlu kural sonuçları kullanılır. Seçim turnuvayla (k = 3) yapılır. Çaprazlama merkezlerde karışım, kurallarda tek biçimli yapılır. Mutasyon Gauss gürültüsü ve ±1 kural kaydırmasıdır. Her nesilde en iyi 2 birey korunur.</li>
-        <li><b>Projeyi genişletmek için:</b> GA yerine bir pekiştirmeli öğrenme ajanı (Q-öğrenme, DQN) üyelik parametrelerini çevrimiçi ayarlayabilir. Sola dönüş fazları, yaya butonu ve ardışık kavşaklar (yeşil dalga) eklenebilir. Sonuçlar SUMO simülatöründe doğrulanabilir.</li>
-      </ul>
-    </details>
+    <div class="card-head"><h2>Talep duyarlılık analizi</h2><span class="sub">Talep, seçili senaryonun oranları korunarak 0,3–1,7 katına ölçeklenir</span></div>
+    <div class="row">
+      <label class="inline">Temel senaryo <select id="senSc"></select></label>
+      <label class="inline">Tekrar <select id="senReps"><option>2</option><option selected>3</option><option>5</option></select></label>
+      <button id="senRun" class="primary">Analizi çalıştır</button>
+      <div class="progress"><div id="senBar"></div></div><span class="status" id="senStatus">Denetleyiciler yukarıdaki seçimden alınır</span>
+    </div>
+    <div class="legend" id="senLegend" style="margin:12px 0 6px"></div>
+    <canvas id="cvSen" data-h="280"></canvas>
+    <p class="hint" id="senNote"></p>
   </section>
-</div>
+</section>
 
-<script>
-(()=>{
-'use strict';
-// ---------- Sabitler ----------
-const VMAX=13.9, ACC=2.0, DEC=3.5, BMAX=5.0, JAM=7.0, REACT=1.0, CARLEN=4.5, CARW=2.3;
-const L=90, BOX=12, LANEW=5, EXIT=2*(L+BOX)+6;
-const YELLOW=3, ALLRED=2, DT_VIS=0.05;
-const PH=[0,0,1,1];                       // K, G, B, D
-const DIRS=[[0,1],[0,-1],[1,0],[-1,0]];
-const ARM=['Kuzey','Güney','Batı','Doğu'];
-const PHASE_NAMES=['K–G','B–D'];
-const IN_MAX=20, OUT_MAX=15, NSAMP=76;
-const SETS_IN=['Az','Orta','Çok'], SETS_OUT=['Sıfır','Kısa','Orta','Uzun'];
-const DEFAULT_P={g:[0,6,12], r:[0,6,12], o:[0,3,7,12], rules:[0,0,0, 2,1,0, 3,2,1]};
-const PRESETS={dengeli:[8,8,8,8], ana:[15,15,5,5], zirve:[12,12,12,12], asim:[17,6,10,4]};
-const clone=p=>({g:p.g.slice(),r:p.r.slice(),o:p.o.slice(),rules:p.rules.slice()});
-const clamp=(v,a,b)=>v<a?a:v>b?b:v;
-const fmt=(v,d=1)=>v.toLocaleString('tr-TR',{minimumFractionDigits:d,maximumFractionDigits:d});
-const mmss=t=>{t=Math.floor(t);return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');};
+<!-- =================== OPTİMİZASYON =================== -->
+<section class="view" id="v-optimize">
+  <div class="eyebrow">Hesaplamalı zekâ</div>
+  <h1>Bulanık sistemi genetik algoritmayla ayarlayın, Q-öğrenme ajanı eğitin</h1>
+  <p class="lead">İki öğrenme yaklaşımı aynı simülatör üzerinde çalışır. Genetik algoritma, bulanık sistemin üyelik fonksiyonlarını ve kural tabanını arar. Q-öğrenme ajanı ise deneme yanılmayla bir karar politikası öğrenir. Aşırı uyumu ölçmek için sonuçlar, eğitimde kullanılmamış rastgele akışlarla (test tohumları) ayrıca raporlanır.</p>
 
-function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  <section class="card">
+    <div class="card-head"><h2>Genetik-bulanık optimizasyon</h2><span class="sub" id="gaState"></span></div>
+    <div class="row">
+      <label class="inline">Eğitim senaryosu <select id="gaSc"></select></label>
+      <label class="inline">Optimize edilen <select id="gaMode"><option value="both">Üyelik fonksiyonları + kurallar</option><option value="mf">Yalnız üyelik fonksiyonları (ayar)</option><option value="rules">Yalnız kural tabanı (öğrenme)</option></select></label>
+      <label class="inline">Popülasyon <select id="gaPop"><option>12</option><option selected>20</option><option>30</option></select></label>
+      <label class="inline">Nesil <select id="gaGen"><option>8</option><option selected>15</option><option>25</option><option>40</option></select></label>
+      <button id="gaRun" class="primary">Optimizasyonu başlat</button>
+      <button id="gaStop" class="ghost" disabled>Durdur</button>
+    </div>
+    <div class="row" style="margin-top:12px"><div class="progress"><div id="gaBar"></div></div><span class="status" id="gaStatus">Hazır</span></div>
+    <div class="grid2" style="margin-top:14px">
+      <div>
+        <div class="fz-title"><b>Yakınsama</b> · eğitim tohumlarında araç başına ortalama gecikme</div>
+        <canvas id="cvGA" data-h="230"></canvas>
+        <div class="legend" style="margin-top:6px"><span><i style="background:var(--c-fuzzyga)"></i>En iyi birey</span><span><i style="background:var(--muted)"></i>Popülasyon ortalaması</span><span><i style="background:var(--c-actuated)"></i>Araç tetiklemeli (eğitim)</span></div>
+      </div>
+      <div id="gaRes"><div class="fz-title"><b>Eğitim ve test sonuçları</b></div><p class="empty">Optimizasyon tamamlandığında beş denetleyici eğitim ve test tohumlarında karşılaştırılır.</p></div>
+    </div>
+    <div id="gaLearned" style="display:none;margin-top:16px">
+      <h3>Öğrenilen bulanık sistem</h3>
+      <div class="grid3">
+        <div><div class="fz-title">Yeşil yön araç sayısı</div><canvas id="gaMfG" data-h="130"></canvas></div>
+        <div><div class="fz-title">Kırmızı yön araç sayısı</div><canvas id="gaMfR" data-h="130"></canvas></div>
+        <div><div class="fz-title">Yeşil uzatma (s)</div><canvas id="gaMfO" data-h="130"></canvas></div>
+      </div>
+      <div class="grid2" style="margin-top:10px">
+        <div><div class="fz-title"><b>Öğrenilen kural tabanı</b> (değişen kurallar vurgulu)</div><table class="rules ro" id="gaRules"></table></div>
+        <div><div class="fz-title"><b>Uygulama</b></div><p class="hint" style="margin-top:0">Uygulanan çözüm, simülatörde ve deney laboratuvarında "Bulanık + GA" denetleyicisi olarak kullanılır ve tarayıcınızda saklanır.</p>
+          <div class="row"><button id="gaApply" class="primary">Bu çözümü uygula</button><button id="gaClear" class="ghost">Kaydedilen GA çözümünü sil</button></div></div>
+      </div>
+    </div>
+  </section>
 
-// ---------- Bulanık çıkarım ----------
-function ruspini(c,k,x){
-  const n=c.length;
-  if(k===0){ if(x<=c[0])return 1; if(x>=c[1])return 0; return (c[1]-x)/(c[1]-c[0]); }
-  if(k===n-1){ if(x>=c[n-1])return 1; if(x<=c[n-2])return 0; return (x-c[n-2])/(c[n-1]-c[n-2]); }
-  if(x<=c[k-1]||x>=c[k+1])return 0;
-  return x<=c[k]?(x-c[k-1])/(c[k]-c[k-1]):(c[k+1]-x)/(c[k+1]-c[k]);
-}
-function infer(P,qG,qR,full){
-  const muG=[0,1,2].map(k=>ruspini(P.g,k,qG)), muR=[0,1,2].map(k=>ruspini(P.r,k,qR));
-  const fire=new Array(9), agg=new Float64Array(NSAMP);
-  for(let a=0;a<3;a++)for(let b=0;b<3;b++){
-    const w=Math.min(muG[a],muR[b]); fire[a*3+b]=w;
-    if(w>0){ const o=P.rules[a*3+b];
-      for(let j=0;j<NSAMP;j++){ const x=j*OUT_MAX/(NSAMP-1); const m=Math.min(w,ruspini(P.o,o,x)); if(m>agg[j])agg[j]=m; } }
-  }
-  let num=0,den=0; for(let j=0;j<NSAMP;j++){ const x=j*OUT_MAX/(NSAMP-1); num+=x*agg[j]; den+=agg[j]; }
-  const out=den>0?num/den:0;
-  return full?{out,muG,muR,fire,agg}:{out};
-}
+  <section class="card">
+    <div class="card-head"><h2>Q-öğrenme ajanı</h2><span class="sub" id="qState"></span></div>
+    <div class="row">
+      <label class="inline">Eğitim senaryosu <select id="qSc"></select></label>
+      <label class="inline">Bölüm sayısı <select id="qEp"><option>60</option><option selected>120</option><option>240</option></select></label>
+      <button id="qRun" class="primary">Eğitimi başlat</button>
+      <button id="qStop" class="ghost" disabled>Durdur</button>
+    </div>
+    <div class="row" style="margin-top:12px"><div class="progress"><div id="qBar"></div></div><span class="status" id="qStatus">Hazır</span></div>
+    <div class="grid2" style="margin-top:14px">
+      <div>
+        <div class="fz-title"><b>Öğrenme eğrisi</b> · bölüm başına ortalama gecikme (10 bölümlük hareketli ortalama)</div>
+        <canvas id="cvQL" data-h="230"></canvas>
+        <div id="qRes" style="margin-top:12px"></div>
+      </div>
+      <div>
+        <div class="fz-title"><b>Öğrenilen politika</b> · <span id="qTbLab"></span></div>
+        <canvas id="cvPol" data-h="300"></canvas>
+        <div class="row" style="margin-top:8px"><label class="inline" style="flex:1;white-space:nowrap">Geçen yeşil süresi <input type="range" id="qTb" min="0" max="3" step="1" value="1"></label></div>
+        <div class="legend"><span><i class="sq" style="background:var(--c-fuzzyga)"></i>Yeşili sürdür</span><span><i class="sq" style="background:var(--c-fixed)"></i>Fazı değiştir</span><span><i class="sq" style="background:var(--soft)"></i>Ziyaret edilmemiş durum</span></div>
+      </div>
+    </div>
+  </section>
+</section>
 
-// ---------- Kontrolcüler ----------
-function FixedCtrl(getG){ return {kind:'fixed', last:null, init(){}, onGreen(){}, update(sim){ return sim.stateT>=getG()-1e-9; }}; }
-function FuzzyCtrl(getP,getMaxG){
-  return {kind:'fuzzy', minG:7, thr:1.5, nextEval:7, last:null,
-    init(){this.nextEval=this.minG;}, onGreen(){this.nextEval=this.minG;},
-    update(sim){
-      if(sim.stateT<this.nextEval-1e-9) return false;
-      const qG=sim.phaseCount(sim.phase), qR=sim.phaseCount(1-sim.phase), t=sim.t;
-      if(qR===0){ this.nextEval=sim.stateT+1; this.last={t,qG,qR,act:'Karşı yönde araç yok, yeşil devam ediyor'}; return false; }
-      const mg=getMaxG();
-      if(sim.stateT>=mg-1e-9){ this.last={t,qG,qR,act:'Maksimum yeşil doldu, faz değişiyor'}; return true; }
-      const r=infer(getP(),qG,qR);
-      if(r.out<this.thr){ this.last={t,qG,qR,out:r.out,act:`Çıktı ${fmt(r.out)} s < 1,5 s, faz değişiyor`}; return true; }
-      const ext=Math.min(r.out,mg-sim.stateT); this.nextEval=sim.stateT+ext;
-      this.last={t,qG,qR,out:r.out,act:`Yeşil +${fmt(ext)} s uzatıldı`}; return false;
-    }};
-}
+<!-- =================== YÖNTEM VE LİTERATÜR =================== -->
+<section class="view" id="v-method">
+  <div class="article">
+  <div class="eyebrow">Akademik dayanak</div>
+  <h1>Yöntem ve literatür</h1>
+  <p class="lead">Bu bölüm, simülatörde uygulanan her yöntemin kuramsal dayanağını, modelleme varsayımlarını ve deney tasarımını özetler. Metin, bir bitirme projesi veya makalenin "Literatür" ve "Yöntem" bölümleri için iskelet olarak kullanılabilir.</p>
+  <div class="toc"><a href="#method" data-jump="m1">1. Problem</a><a href="#method" data-jump="m2">2. Bulanık mantık</a><a href="#method" data-jump="m3">3. Literatür</a><a href="#method" data-jump="m4">4. Referans yöntemler</a><a href="#method" data-jump="m5">5. Genetik-bulanık sistemler</a><a href="#method" data-jump="m6">6. Pekiştirmeli öğrenme</a><a href="#method" data-jump="m7">7. Simülasyon modeli</a><a href="#method" data-jump="m8">8. Ölçütler</a><a href="#method" data-jump="m9">9. Deney tasarımı</a><a href="#method" data-jump="refs">Kaynakça</a></div>
 
-// ---------- Trafik simülasyonu ----------
-class Sim{
-  constructor(seed,demand,ctrl){
-    this.t=0; this.demand=demand; this.ctrl=ctrl;
-    this.lanes=[]; for(let i=0;i<4;i++) this.lanes.push({cars:[],pending:[],rng:mulberry32(((seed*2654435761)>>>0)+i*97531)});
-    this.phase=0; this.state='green'; this.stateT=0; this.epoch=[0,0,0,0];
-    this.crossed=0; this.delayDone=0; this.generated=0; this.switches=0;
-    ctrl.init(this);
-  }
-  green(i){return this.state==='green'&&PH[i]===this.phase;}
-  sig(i){ if(PH[i]!==this.phase) return 'red'; return this.state==='green'?'green':this.state==='yellow'?'yellow':'red'; }
-  count(i){ const ln=this.lanes[i]; let n=ln.pending.length; const cs=ln.cars; for(let k=cs.length-1;k>=0;k--){ if(cs[k].s<L) n++; else break; } return n; }
-  phaseCount(p){ let m=0; for(let i=0;i<4;i++) if(PH[i]===p){ const c=this.count(i); if(c>m)m=c; } return m; }
-  queued(){ let n=0; for(const ln of this.lanes){ n+=ln.pending.length; for(const c of ln.cars) if(c.s<L&&c.v<1.5) n++; } return n; }
-  avgDelay(){ let tot=this.delayDone; for(const ln of this.lanes){ for(const c of ln.cars) tot+=c.wait; for(const t0 of ln.pending) tot+=this.t-t0; } return this.generated?tot/this.generated:0; }
-  step(dt){
-    const rates=this.demand(this.t);
-    for(let i=0;i<4;i++){
-      const ln=this.lanes[i], cars=ln.cars;
-      if(ln.rng()<rates[i]*dt){ ln.pending.push(this.t); this.generated++; }
-      if(ln.pending.length){ const last=cars[cars.length-1];
-        if(!last||last.s>=JAM+0.3){ const t0=ln.pending.shift(); const gap=last?last.s-JAM:1e9;
-          const v=Math.min(VMAX,Math.sqrt(2*DEC*Math.max(0,gap)));
-          cars.push({s:0,v,wait:this.t-t0,react:0,stopped:v<0.1,done:false,ep:-1,go:false}); } }
-      const green=this.green(i);
-      for(let k=0;k<cars.length;k++){
-        const c=cars[k];
-        let lim=k>0?cars[k-1].s-JAM:1e9;
-        if(!green&&c.s<L){ if(c.ep!==this.epoch[i]){ c.ep=this.epoch[i]; c.go=(L-c.s)<c.v*c.v/(2*BMAX); } if(!c.go) lim=Math.min(lim,L-0.05); }
-        const gap=lim-c.s; let v;
-        if(gap<=0.3){ v=0; c.react=0; }
-        else if(c.stopped){ c.react+=dt; if(c.react>=REACT-1e-9){ c.stopped=false; c.react=0; v=Math.min(ACC*dt,Math.sqrt(2*DEC*gap)); } else v=0; }
-        else v=Math.min(c.v+ACC*dt,VMAX,Math.sqrt(2*DEC*gap));
-        if(v<0.05){ v=0; if(!c.stopped){c.stopped=true;c.react=0;} }
-        if(c.s<L&&v<1.5) c.wait+=dt;
-        c.s+=Math.min(v*dt,Math.max(0,gap)); c.v=v;
-        if(!c.done&&c.s>=L){ c.done=true; this.crossed++; }
-      }
-      while(cars.length&&cars[0].s>EXIT){ const c=cars.shift(); this.delayDone+=c.wait; }
-    }
-    this.stateT+=dt;
-    if(this.state==='green'){ if(this.ctrl.update(this)){ this.state='yellow'; this.stateT=0; this.switches++; for(let i=0;i<4;i++) if(PH[i]===this.phase) this.epoch[i]++; } }
-    else if(this.state==='yellow'){ if(this.stateT>=YELLOW-1e-9){ this.state='allred'; this.stateT=0; } }
-    else if(this.stateT>=ALLRED-1e-9){ this.state='green'; this.stateT=0; this.phase=1-this.phase; this.ctrl.onGreen(this); }
-    this.t+=dt;
-  }
-}
-function makeDemand(cfg){
-  const out=[0,0,0,0];
-  return t=>{ for(let i=0;i<4;i++){ let r=cfg.rates[i]/60; if(cfg.dyn){ r*=1+0.75*Math.sin(2*Math.PI*t/360+(PH[i]?Math.PI:0)); } out[i]=Math.max(0,r); } return out; };
-}
+  <h2 id="m1">1. Problem tanımı</h2>
+  <p>Çalışma, dört kollu ve izole bir kavşağı ele alır. Kavşakta iki faz vardır: Kuzey–Güney (K–G) ve Batı–Doğu (B–D). Her kolda düz giden tek bir şerit bulunur. Denetleyici, yeşil fazın ne zaman sonlandırılacağına karar verir. Amaç, araç başına ortalama kontrol gecikmesini en aza indirmektir. Bu ölçüt, sinyalli kavşaklarda hizmet düzeyinin (LOS) belirlendiği temel ölçüttür <a class="cite" data-ref="hcm2010" href="#method">(TRB, 2010)</a>.</p>
+  <p>Sabit süreli sinyaller, ortalama talebe göre bir kez hesaplanır ve talepteki dalgalanmalara tepki veremez. Uyarlanabilir denetleyiciler ise dedektör ya da kamera verisine göre yeşil süresini anlık ayarlar. Bu proje, uyarlanabilir kontrol için bulanık mantık temelli bir denetleyiciyi klasik ve öğrenen yöntemlerle karşılaştırır.</p>
 
-// ---------- Durum ----------
-const cfg={rates:PRESETS.dengeli.slice(),dyn:false};
-let P=clone(DEFAULT_P), fixedG=30, maxG=60;
-let simF,simX,hist,lastRec,seed=42;
-function reset(newSeed){
-  if(newSeed) seed=(Math.random()*1e9)|0;
-  const d=makeDemand(cfg);
-  simF=new Sim(seed,d,FuzzyCtrl(()=>P,()=>maxG));
-  simX=new Sim(seed,d,FixedCtrl(()=>fixedG));
-  hist={t:[],f:[],x:[]}; lastRec=-2; record();
-}
-function record(){ hist.t.push(simF.t); hist.f.push(simF.queued()); hist.x.push(simX.queued()); if(hist.t.length>301){hist.t.shift();hist.f.shift();hist.x.shift();} lastRec=simF.t; }
+  <h2 id="m2">2. Bulanık mantık ve Mamdani çıkarımı</h2>
+  <p>Bulanık küme kavramı, bir elemanın bir kümeye [0, 1] aralığında kısmi üyeliğine izin verir <a class="cite" data-ref="zadeh1965" href="#method">(Zadeh, 1965)</a>. "Kuyruk uzun" gibi kesin sınırı olmayan dilsel ifadeler bu yolla sayısal olarak temsil edilir. Mamdani ve Assilian, bir operatörün sezgisel denetim kurallarını bulanık mantıkla otomatik bir denetim stratejisine dönüştürmüş ve böylece bugün kendi adlarıyla anılan çıkarım yapısını ortaya koymuştur <a class="cite" data-ref="mamdani1975" href="#method">(Mamdani ve Assilian, 1975)</a>.</p>
+  <p>Bu projedeki denetleyicinin iki girdisi vardır. \(q_G\), yeşil yöndeki araç sayısıdır. \(q_R\), kırmızı yöndeki araç sayısıdır. Her ikisi de fazın iki kolundan büyük olanıdır. Çıktı \(e\), yeşil uzatma süresidir. Girdiler {Az, Orta, Çok}, çıktı ise {Sıfır, Kısa, Orta, Uzun} dilsel değerleriyle tanımlanır. Üyelik fonksiyonları üçgen/omuz biçimindedir ve her noktada toplamları 1'dir (Ruspini bölüntüsü):</p>
+  <div class="eq">\[ \sum_{k}\mu_{A_k}(x)=1,\qquad \mu_{A_k}(x)=\max\!\Big(0,\ \min\!\Big(\tfrac{x-c_{k-1}}{c_k-c_{k-1}},\ \tfrac{c_{k+1}-x}{c_{k+1}-c_k}\Big)\Big) \]</div>
+  <p>Kural tabanı 3 × 3 = 9 kuraldan oluşur. Örneğin: <i>EĞER yeşil yönde araç Çok VE kırmızı yönde araç Az İSE uzatma Uzun</i>. Çıkarım üç adımda yapılır. Önce VE işlemi için min ile her kuralın ateşlenme derecesi bulunur. Sonra kuralların sonuçları max ile birleştirilir. Son olarak ağırlık merkezi yöntemiyle kesin değere dönüştürülür:</p>
+  <div class="eq">\[ \alpha_{ij}=\min\big(\mu_{A_i}(q_G),\,\mu_{B_j}(q_R)\big),\qquad \mu(e)=\max_{i,j}\ \min\big(\alpha_{ij},\,\mu_{C_{k(i,j)}}(e)\big),\qquad e^{*}=\frac{\int e\,\mu(e)\,de}{\int \mu(e)\,de} \]</div>
+  <p>Karar kuralı şöyledir. En kısa yeşil süresi \(G_{\min}=7\) s dolduktan sonra sistem değerlendirilir. \(e^{*}&lt;1{,}5\) s ise faz sonlandırılır. Değilse yeşil \(e^{*}\) kadar uzatılır ve süre bitiminde yeniden değerlendirilir. Kırmızı yönde araç yoksa yeşil sürer. En uzun yeşil süresi \(G_{\max}\) aşılamaz. Bu "uzat ya da sonlandır" yapısı, literatürdeki bulanık sinyal denetleyicilerinin ortak kalıbıdır.</p>
 
-// ---------- Renkler ----------
-let C={};
-function readColors(){ const cs=getComputedStyle(document.documentElement); const g=n=>cs.getPropertyValue(n).trim();
-  C={bg:g('--bg'),panel:g('--panel'),ink:g('--ink'),muted:g('--muted'),line:g('--line'),soft:g('--soft'),fuzzy:g('--fuzzy'),fixed:g('--fixed'),red:g('--red'),amber:g('--amber'),go:g('--go'),road:g('--road'),grass:g('--grass'),mark:g('--mark'),s:[g('--s1'),g('--s2'),g('--s3'),g('--s4')]}; }
-function rgb(h){ h=h.replace('#',''); if(h.length===3)h=h.split('').map(x=>x+x).join(''); const n=parseInt(h,16); return [n>>16&255,n>>8&255,n&255]; }
-function mix(a,b,f){ const A=rgb(a),B=rgb(b); return `rgb(${A.map((v,i)=>Math.round(v+(B[i]-v)*f)).join(',')})`; }
-function rgba(h,a){ const A=rgb(h); return `rgba(${A[0]},${A[1]},${A[2]},${a})`; }
-readColors();
-try{ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',readColors); }catch(e){}
+  <h2 id="m3">3. Bulanık trafik sinyali kontrolü literatürü</h2>
+  <p>Bulanık mantığın trafik sinyaline ilk uygulaması Pappis ve Mamdani'ye aittir. Çalışmada iki tek yönlü yolun kesiştiği tek bir kavşak modellenmiştir. Bulanık denetleyicinin sonuçları, etkin bir araç tetiklemeli denetleyiciyle karşılaştırılmıştır. Ortalama araç gecikmesi ölçütüne göre bulanık denetleyicinin daha iyi performans gösterdiği bildirilmiştir <a class="cite" data-ref="pappis1977" href="#method">(Pappis ve Mamdani, 1977)</a>.</p>
+  <p>Trabia, Kaseko ve Ande izole bir kavşak için iki aşamalı bir bulanık denetleyici geliştirmiştir. Denetleyici, yaklaşım kollarındaki dedektörlerden akımları ve kuyrukları tahmin eder. Ardından düzenli aralıklarla mevcut fazın uzatılıp uzatılmayacağına karar verir. İlk aşamada rakip kolların göreli trafik yoğunlukları, ikinci aşamada uzatma ya da sonlandırma kararı belirlenir. Performans, dört kollu simüle bir kavşakta araç tetiklemeli denetleyiciyle karşılaştırılmıştır <a class="cite" data-ref="trabia1999" href="#method">(Trabia vd., 1999)</a>. Bu projedeki karar yapısı bu yaklaşımın tek aşamalı bir sadeleştirmesidir.</p>
+  <p>Niittymäki ve Pursula, sinyal grubu kontrolünde bir bulanık uzatıcı ve bir bulanık seçici kullanmıştır. Kurallar üç düzeyde çalışır. Üst düzey kurallar trafik durumunu aşırı doygun, normal ve düşük talep olarak sınıflandırır <a class="cite" data-ref="niittymaki2000" href="#method">(Niittymäki ve Pursula, 2000)</a>. Koukol ve arkadaşlarının derlemesi, 1970'lerin temel bulanık modellerinden gerçek zamanlı veriyi bulanık çıkarım ve genetik algoritmalarla birleştiren yaklaşımlara kadar literatürü özetler. Derlemenin vardığı sonuç, bulanık denetleyicilerin çoğu durumda kavşak yönetiminin etkinliğinde kayda değer iyileşme sağladığıdır <a class="cite" data-ref="koukol2015" href="#method">(Koukol vd., 2015)</a>.</p>
 
-// ---------- Çizim yardımcıları ----------
-function prep(cv){
-  const dpr=window.devicePixelRatio||1, W=cv.clientWidth||300, H=cv.dataset.h==='sq'?W:+cv.dataset.h;
-  if(cv._W!==W||cv._H!==H||cv._d!==dpr){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); cv.style.height=H+'px'; cv._W=W; cv._H=H; cv._d=dpr; }
-  const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H); return {ctx,W,H};
-}
-const MONO='"IBM Plex Mono", monospace';
-function niceMax(v){ if(v<=0)return 1; const p=Math.pow(10,Math.floor(Math.log10(v))); const n=v/p; return (n<=1?1:n<=2?2:n<=5?5:10)*p; }
+  <h2 id="m4">4. Referans (karşılaştırma) yöntemleri</h2>
+  <p><b>Webster yöntemi.</b> İzole kavşakta sabit süreli planın klasik hesabıdır. Önce optimum döngü süresi bulunur. Yeşil süreleri ise her fazın kritik akım oranıyla orantılı paylaştırılır <a class="cite" data-ref="webster1958" href="#method">(Webster, 1958)</a>:</p>
+  <div class="eq">\[ C_0=\frac{1{,}5\,L+5}{1-Y},\qquad Y=\sum_{p} y_p,\quad y_p=\max_{i\in p}\frac{q_i}{s},\qquad g_p=(C_0-L)\,\frac{y_p}{Y} \]</div>
+  <p class="note">Burada \(L\) toplam kayıp zamandır. Bu modelde faz başına 5,5 s alınır: 1,4 s kalkış kaybı, 2 s tüm yönler kırmızı ve yaklaşık 2 s kullanılmayan sarı. \(s\) doygun akımdır ve modelden 0,48 araç/s/şerit olarak ölçülmüştür. \(Y\) 1'e yaklaştıkça formül makul olmayan büyüklükte döngüler üretir. Doygunluğa yakın ve aşırı doygun koşullarda bu nedenle uygun değildir <a class="cite" data-ref="lan2004" href="#method">(Lan, 2004)</a>. Simülatörde döngü 30–150 s ile sınırlandırılmıştır.</p>
+  <p><b>Araç tetiklemeli kontrol.</b> Sahada en yaygın uyarlanabilir yöntemdir ve bulanık denetleyicilerin klasik rakibidir. Yeşil önce en kısa süre kadar verilir. Ardından dedektörde araç algılandıkça "geçiş süresi" kadar uzatılır. Ardışık araçlar arasındaki boşluk bu süreyi aşınca faz sonlanır (gap-out). Maksimum yeşile ulaşıldığında da faz sonlanır (max-out) <a class="cite" data-ref="stm2015" href="#method">(Urbanik vd., 2015)</a>. Simülatörde dedektör dur çizgisinden 40 m geridedir ve varlık modunda çalışır. Geçiş süresi 3 s, en kısa yeşil 7 s olarak alınmıştır.</p>
 
-function drawInter(cv,sim,base){
-  const {ctx,W}=prep(cv); const sc=W/(2*(L+BOX)), c=W/2, hw=LANEW*sc, b=BOX*sc;
-  ctx.fillStyle=C.grass; ctx.fillRect(0,0,W,W);
-  ctx.fillStyle=C.road; ctx.fillRect(c-hw,0,2*hw,W); ctx.fillRect(0,c-hw,W,2*hw);
-  ctx.strokeStyle=C.mark; ctx.globalAlpha=.55; ctx.lineWidth=1; ctx.setLineDash([6,7]);
-  ctx.beginPath(); ctx.moveTo(c,0); ctx.lineTo(c,c-b); ctx.moveTo(c,c+b); ctx.lineTo(c,W); ctx.moveTo(0,c); ctx.lineTo(c-b,c); ctx.moveTo(c+b,c); ctx.lineTo(W,c); ctx.stroke();
-  ctx.setLineDash([]); ctx.globalAlpha=1;
-  // yaya geçidi
-  ctx.fillStyle=C.mark; ctx.globalAlpha=.18;
-  for(let i=0;i<4;i++){ const d=DIRS[i], rn=[-d[1],d[0]];
-    for(let k=-4;k<4;k++){ const off=(k+0.5)*1.25, px=c+(-d[0]*(BOX-3)+rn[0]*off)*sc, py=c+(-d[1]*(BOX-3)+rn[1]*off)*sc;
-      ctx.save(); ctx.translate(px,py); ctx.rotate(Math.atan2(d[1],d[0])); ctx.fillRect(-2*sc,-0.35*sc,4*sc,0.7*sc); ctx.restore(); } }
-  ctx.globalAlpha=1;
-  // dur çizgileri ve lambalar
-  ctx.lineWidth=Math.max(2,0.6*sc); ctx.strokeStyle=C.mark;
-  for(let i=0;i<4;i++){ const d=DIRS[i], rn=[-d[1],d[0]];
-    const x0=c-d[0]*BOX*sc, y0=c-d[1]*BOX*sc;
-    ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x0+rn[0]*LANEW*sc,y0+rn[1]*LANEW*sc); ctx.stroke();
-    const s=sim.sig(i), col=s==='green'?C.go:s==='yellow'?C.amber:C.red;
-    const lx=c+(-d[0]*(BOX+2)+rn[0]*(LANEW+3))*sc, ly=c+(-d[1]*(BOX+2)+rn[1]*(LANEW+3))*sc, r=Math.max(4,1.9*sc);
-    ctx.fillStyle='#16181b'; ctx.beginPath(); ctx.arc(lx,ly,r+2,0,7); ctx.fill();
-    ctx.fillStyle=col; ctx.beginPath(); ctx.arc(lx,ly,r,0,7); ctx.fill();
-  }
-  // araçlar
-  for(let i=0;i<4;i++){ const d=DIRS[i], rn=[-d[1],d[0]], ang=Math.atan2(d[1],d[0]), ln=sim.lanes[i];
-    for(const car of ln.cars){ const dd=(L+BOX)-car.s;
-      const fx=c+(-d[0]*dd+rn[0]*LANEW/2)*sc, fy=c+(-d[1]*dd+rn[1]*LANEW/2)*sc;
-      ctx.save(); ctx.translate(fx,fy); ctx.rotate(ang);
-      ctx.fillStyle=mix(base,C.red,Math.min(1,car.wait/60));
-      const x=-CARLEN*sc, y=-CARW*sc/2, w=CARLEN*sc, h=CARW*sc;
-      if(ctx.roundRect){ ctx.beginPath(); ctx.roundRect(x,y,w,h,Math.min(3,h/2)); ctx.fill(); } else ctx.fillRect(x,y,w,h);
-      ctx.restore(); }
-    // kol adı ve bekleyen araçlar
-    const ex=c+(-d[0]*(L+BOX-7)+rn[0]*(LANEW+9))*sc, ey=c+(-d[1]*(L+BOX-7)+rn[1]*(LANEW+9))*sc;
-    ctx.font=`500 ${Math.max(10,Math.round(4.6*sc))}px ${MONO}`; ctx.textAlign='center'; ctx.textBaseline='middle';
-    if(ln.pending.length){ ctx.fillStyle=C.red; ctx.fillText('+'+ln.pending.length,ex,ey); }
-    const ax=c+(-d[0]*(L+BOX-4)-rn[0]*(LANEW+9))*sc, ay=c+(-d[1]*(L+BOX-4)-rn[1]*(LANEW+9))*sc;
-    ctx.fillStyle=C.muted; ctx.font=`${Math.max(10,Math.round(4.2*sc))}px "IBM Plex Sans", sans-serif`; ctx.fillText(ARM[i],clamp(ax,26,W-26),ay);
-  }
-}
+  <h2 id="m5">5. Genetik-bulanık sistemler</h2>
+  <p>Elle tasarlanmış bir bulanık sistemin başarısı, üyelik fonksiyonlarının ve kuralların ne kadar iyi seçildiğine bağlıdır. Genetik algoritmalar <a class="cite" data-ref="holland1975" href="#method">(Holland, 1975</a>; <a class="cite" data-ref="goldberg1989" href="#method">Goldberg, 1989)</a> bu tasarıma öğrenme ve uyarlanma yeteneği kazandırmak için kullanılır. Bu birleşime genetik-bulanık sistem (GFS) denir <a class="cite" data-ref="herrera2008" href="#method">(Herrera, 2008)</a>. Literatür iki ayrı kullanımı birbirinden ayırır <a class="cite" data-ref="cordon2001" href="#method">(Cordón vd., 2001)</a>. Kural tabanı sabitken yalnızca üyelik parametrelerini iyileştirmek <i>genetik ayar</i> olarak adlandırılır. Kural tabanını aramak ise <i>genetik öğrenme</i>dir. Simülatördeki "Optimize edilen" seçeneği bu iki kullanımı ve ikisinin birleşimini ayrı ayrı deneyerek bir ablasyon analizi yapmaya olanak verir.</p>
+  <p>Birey (kromozom) şu parametrelerden oluşur: iki girdinin üçer merkezi, çıktının dört merkezi (gerçel sayılar) ve 9 kuralın sonucu (tamsayılar, 0–3). Seçim, k = 3 turnuva yöntemiyle yapılır. Gerçel genler genişletilmiş karışım çaprazlamasıyla, kurallar tek biçimli çaprazlamayla birleştirilir. Mutasyon için Gauss gürültüsü ve ±1 kural kaydırması kullanılır. Her nesilde en iyi 2 birey korunur. Uygunluk fonksiyonu, eğitim senaryoları \(\mathcal S\) ve eğitim tohumları \(\mathcal R\) üzerinden ortalama gecikmedir:</p>
+  <div class="eq">\[ F(\theta)=\frac{1}{|\mathcal S|\,|\mathcal R|}\sum_{s\in\mathcal S}\sum_{r\in\mathcal R}\bar d(\theta;\,s,r) \;\longrightarrow\; \min_\theta \]</div>
 
-function drawMF(cv,centers,names,xMax,x,mus,agg,out,unit){
-  const {ctx,W,H}=prep(cv); const pl=30,pr=12,pt=22,pb=22, iw=W-pl-pr, ih=H-pt-pb;
-  const X=v=>pl+v/xMax*iw, Y=m=>pt+(1-m)*ih;
-  ctx.font=`11px ${MONO}`; ctx.textBaseline='middle';
-  ctx.strokeStyle=C.line; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(pl,Y(0)); ctx.lineTo(W-pr,Y(0)); ctx.stroke();
-  ctx.setLineDash([3,4]); ctx.beginPath(); ctx.moveTo(pl,Y(1)); ctx.lineTo(W-pr,Y(1)); ctx.moveTo(pl,Y(.5)); ctx.lineTo(W-pr,Y(.5)); ctx.stroke(); ctx.setLineDash([]);
-  ctx.fillStyle=C.muted; ctx.textAlign='right'; ctx.fillText('1',pl-6,Y(1)); ctx.fillText('0,5',pl-6,Y(.5)); ctx.fillText('0',pl-6,Y(0));
-  ctx.textAlign='center'; const step=xMax>15?5:3;
-  for(let v=0;v<=xMax+1e-9;v+=step) ctx.fillText(String(v),X(v),H-pb+12);
-  if(agg){ ctx.beginPath(); ctx.moveTo(X(0),Y(0)); for(let j=0;j<agg.length;j++) ctx.lineTo(X(j*xMax/(agg.length-1)),Y(agg[j])); ctx.lineTo(X(xMax),Y(0)); ctx.closePath(); ctx.fillStyle=rgba(C.fuzzy,.28); ctx.fill(); }
-  const cols=centers.length===3?[C.s[0],C.s[1],C.s[3]]:C.s;
-  for(let k=0;k<centers.length;k++){
-    ctx.strokeStyle=cols[k]; ctx.lineWidth=1.8; ctx.beginPath();
-    for(let j=0;j<=160;j++){ const v=j/160*xMax, m=ruspini(centers,k,v); j?ctx.lineTo(X(v),Y(m)):ctx.moveTo(X(v),Y(m)); }
-    ctx.stroke();
-    ctx.fillStyle=cols[k]; ctx.font=`500 11.5px "IBM Plex Sans", sans-serif`; ctx.textAlign='center';
-    ctx.fillText(names[k],clamp(X(Math.min(centers[k],xMax)),pl+14,W-pr-14),pt-11);
-  }
-  if(x!=null){ const xx=X(Math.min(x,xMax)); ctx.strokeStyle=C.ink; ctx.lineWidth=1; ctx.setLineDash([4,3]); ctx.beginPath(); ctx.moveTo(xx,Y(0)); ctx.lineTo(xx,Y(1.04)); ctx.stroke(); ctx.setLineDash([]);
-    for(let k=0;k<mus.length;k++) if(mus[k]>0){ ctx.fillStyle=cols[k]; ctx.beginPath(); ctx.arc(xx,Y(mus[k]),4,0,7); ctx.fill(); ctx.strokeStyle=C.panel; ctx.lineWidth=1.5; ctx.stroke();
-      ctx.fillStyle=C.ink; ctx.font=`11px ${MONO}`; ctx.textAlign=xx>W-70?'right':'left'; ctx.fillText(fmt(mus[k],2),xx+(xx>W-70?-8:8),Y(mus[k])); } }
-  if(out!=null){ const xo=X(out); ctx.strokeStyle=C.fuzzy; ctx.lineWidth=2.2; ctx.beginPath(); ctx.moveTo(xo,Y(0)); ctx.lineTo(xo,Y(1.04)); ctx.stroke();
-    ctx.fillStyle=C.fuzzy; ctx.font=`500 11.5px ${MONO}`; ctx.textAlign=xo>W-80?'right':'left'; ctx.fillText(`ağırlık merkezi ${fmt(out)} ${unit}`,xo+(xo>W-80?-6:6),Y(0.86)); }
-}
+  <h2 id="m6">6. Pekiştirmeli öğrenme ile karşılaştırma</h2>
+  <p>Q-öğrenme, ajanın eylemlerin sonuçlarını deneyimleyerek Markov ortamlarında en iyi davranışı öğrendiği, modelden bağımsız bir yöntemdir. Tüm eylemler her durumda tekrar tekrar örneklendiği ve değerler ayrık tutulduğu sürece optimum eylem değerlerine olasılık 1 ile yakınsar <a class="cite" data-ref="watkins1992" href="#method">(Watkins ve Dayan, 1992)</a>. Abdulhai ve arkadaşları Q-öğrenmeyi trafik sinyali kontrolüne uygulamış ve izole bir sinyalde, özellikle değişken trafik koşullarında umut verici sonuçlar bildirmiştir <a class="cite" data-ref="abdulhai2003" href="#method">(Abdulhai vd., 2003)</a>. Sonraki çalışmalar derin pekiştirmeli öğrenmeyi büyük ölçekli gerçek trafik verisiyle test etmiştir <a class="cite" data-ref="wei2018" href="#method">(Wei vd., 2018)</a>.</p>
+  <p>Bu projedeki ajan tablo tabanlıdır. Durum, yeşil ve kırmızı yöndeki araç sayısı (6'şar sınıf) ile geçen yeşil süresinden (4 sınıf) oluşur, toplam 144 durum. Eylemler "yeşili 2 s sürdür" ve "fazı değiştir"dir. Ödül, iki karar arasında kuyruktaki araç sayısının zaman integralinin negatifidir:</p>
+  <div class="eq">\[ Q(s,a)\leftarrow Q(s,a)+\alpha\Big[r+\gamma\max_{a'}Q(s',a')-Q(s,a)\Big],\qquad r=-\tfrac{1}{10}\int_{t_k}^{t_{k+1}}N_q(t)\,dt,\quad \alpha=0{,}1,\ \gamma=0{,}9 \]</div>
+  <p>Keşif oranı ε, eğitim boyunca 0,35'ten 0,02'ye doğrusal olarak azalır. Bu karşılaştırmanın amacı şu soruyu yanıtlamaktır: Yorumlanabilir ve az parametreli bir bulanık sistem, kara kutu sayılabilecek bir öğrenen ajana göre ne kadar performans kaybeder ya da kazanır?</p>
 
-function drawLines(cv,series,o){
-  const {ctx,W,H}=prep(cv); const pl=38,pr=12,pt=10,pb=26, iw=W-pl-pr, ih=H-pt-pb;
-  let ym=o.yMax||0; for(const s of series) for(const v of s.ys) if(v>ym) ym=v; ym=niceMax(ym*1.05);
-  const xmin=o.xMin, xmax=Math.max(o.xMax,xmin+1e-6);
-  const X=v=>pl+(v-xmin)/(xmax-xmin)*iw, Y=v=>pt+(1-v/ym)*ih;
-  ctx.font=`11px ${MONO}`; ctx.textBaseline='middle'; ctx.strokeStyle=C.line; ctx.lineWidth=1; ctx.fillStyle=C.muted;
-  for(let k=0;k<=4;k++){ const v=ym*k/4, y=Y(v); ctx.beginPath(); ctx.moveTo(pl,y); ctx.lineTo(W-pr,y); ctx.stroke(); ctx.textAlign='right'; ctx.fillText(Number.isInteger(v)?String(v):fmt(v),pl-6,y); }
-  ctx.textAlign='center';
-  for(const tv of o.xTicks) ctx.fillText(o.xFmt(tv),clamp(X(tv),pl+10,W-pr-18),H-pb+14);
-  for(const r of (o.refs||[])){ ctx.strokeStyle=r.color; ctx.setLineDash([5,4]); ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(pl,Y(r.y)); ctx.lineTo(W-pr,Y(r.y)); ctx.stroke(); ctx.setLineDash([]); }
-  for(const s of series){ if(!s.xs.length) continue; ctx.strokeStyle=s.color; ctx.lineWidth=s.w||2; ctx.beginPath();
-    s.xs.forEach((x,i)=>{ const px=X(x), py=Y(s.ys[i]); i?ctx.lineTo(px,py):ctx.moveTo(px,py); }); ctx.stroke();
-    if(s.dots){ ctx.fillStyle=s.color; s.xs.forEach((x,i)=>{ ctx.beginPath(); ctx.arc(X(x),Y(s.ys[i]),2.6,0,7); ctx.fill(); }); } }
-}
+  <h2 id="m7">7. Simülasyon modeli</h2>
+  <p>Model mikroskobik ve zaman adımlıdır (\(\Delta t=0{,}1\) s). Her araç, öndeki araca ya da kırmızıda dur çizgisine olan boşluğu \(g_t\) üzerinden aşağıdaki kuralla hızını günceller. Duran araç, önü açıldıktan 1 s sonra kalkar:</p>
+  <div class="eq">\[ v_{t+\Delta t}=\min\Big\{v_t+a\,\Delta t,\;v_{\max},\;\sqrt{2\,b\,g_t}\Big\},\qquad a=2\ \text{m/s}^2,\ b=3{,}5\ \text{m/s}^2,\ v_{\max}=13{,}9\ \text{m/s} \]</div>
+  <ul>
+    <li><b>Varışlar:</b> Her kolda Poisson süreci kullanılır. Talep profili sabit, kayan dalga, zirve saati ya da ani artış olabilir.</li>
+    <li><b>Sarı ışık ikilemi:</b> Araç, \(d\ge v^2/(2\cdot 5)\) ise durur, değilse geçer. Karar sarının başında bir kez verilir.</li>
+    <li><b>Kalibrasyon:</b> Ölçülen doygun akım yaklaşık 1740 taşıt/sa/şerit, kalkış kaybı 1,4 s'dir. Bu değerler literatürdeki tipik aralıklarla uyumludur.</li>
+    <li><b>Ortak rastgele sayılar:</b> Aynı tohum, tüm denetleyicilere birebir aynı varış dizisini verir. Bu yöntem karşılaştırmalardaki varyansı azaltır.</li>
+    <li><b>Kısıtlar:</b> Model tek şeritlidir. Dönüş hareketleri, yayalar, ağır taşıtlar ve sürücü çeşitliliği yoktur. Bulgular, SUMO gibi doğrulanmış bir mikro simülatörde tekrarlanmalıdır <a class="cite" data-ref="lopez2018" href="#method">(Lopez vd., 2018)</a>.</li>
+  </ul>
 
-// ---------- Arayüz ----------
-const $=id=>document.getElementById(id);
-const sliderDefs=[
-  {id:'r0',label:'Kuzey (araç/dk)',min:0,max:25,step:1,get:()=>cfg.rates[0],set:v=>cfg.rates[0]=v,rate:true},
-  {id:'r1',label:'Güney (araç/dk)',min:0,max:25,step:1,get:()=>cfg.rates[1],set:v=>cfg.rates[1]=v,rate:true},
-  {id:'fg',label:'Sabit yeşil süresi',min:10,max:60,step:1,get:()=>fixedG,set:v=>fixedG=v,unit:' s'},
-  {id:'r2',label:'Batı (araç/dk)',min:0,max:25,step:1,get:()=>cfg.rates[2],set:v=>cfg.rates[2]=v,rate:true},
-  {id:'r3',label:'Doğu (araç/dk)',min:0,max:25,step:1,get:()=>cfg.rates[3],set:v=>cfg.rates[3]=v,rate:true},
-  {id:'mg',label:'Bulanık maks. yeşil',min:20,max:90,step:1,get:()=>maxG,set:v=>maxG=v,unit:' s'},
-];
-const sl=$('sliders');
-for(const d of sliderDefs){
-  const w=document.createElement('label'); w.className='sl';
-  w.innerHTML=`<span>${d.label}</span><input type="range" min="${d.min}" max="${d.max}" step="${d.step}" id="${d.id}"><output id="${d.id}o"></output>`;
-  sl.appendChild(w);
-  const inp=w.querySelector('input'), out=w.querySelector('output');
-  inp.value=d.get(); out.textContent=d.get()+(d.unit||'');
-  inp.addEventListener('input',()=>{ d.set(+inp.value); out.textContent=inp.value+(d.unit||''); if(d.rate) $('preset').value='ozel'; });
-  d.sync=()=>{ inp.value=d.get(); out.textContent=d.get()+(d.unit||''); };
-}
-$('preset').addEventListener('change',e=>{ const p=PRESETS[e.target.value]; if(!p) return; cfg.rates=p.slice(); sliderDefs.forEach(d=>d.sync()); reset(true); });
-$('dyn').addEventListener('change',e=>{ cfg.dyn=e.target.checked; reset(true); });
-let running=true, speed=4;
-$('play').addEventListener('click',()=>{ running=!running; $('play').textContent=running?'Duraklat':'Devam et'; });
-$('reset').addEventListener('click',()=>reset(true));
-$('speed').addEventListener('change',e=>speed=+e.target.value);
+  <h2 id="m8">8. Performans ölçütleri</h2>
+  <p>Birincil ölçüt araç başına ortalama kontrol gecikmesidir. Bir aracın gecikmesi, dur çizgisini geçtiği an ile kavşağa vardığı an arasındaki süreden serbest akım geçiş süresinin çıkarılmasıyla bulunur. Aşırı doygun koşullarda sistemde kalan araçlar göz ardı edilirse sonuçlar yanıltıcı olur. Bu yüzden simülasyon sonunda henüz geçemeyen araçların o ana kadarki gecikmesi de ortalamaya katılır:</p>
+  <div class="eq">\[ d_n=t^{\text{geçiş}}_n-t^{\text{varış}}_n-\frac{L_{\text{yak}}}{v_{\max}},\qquad \bar d=\frac{1}{N}\sum_{n=1}^{N} d_n \]</div>
+  <table class="data">
+    <tr><th>Ölçüt</th><th>Ne gösterir</th></tr>
+    <tr><td>Ortalama gecikme (s/araç)</td><td>Verimlilik. Hizmet düzeyi (LOS) bu değerden belirlenir.</td></tr>
+    <tr><td>95. persentil gecikme</td><td>Adalet ve en kötü durum. Tali yolun "unutulup unutulmadığını" gösterir.</td></tr>
+    <tr><td>Araç başına duruş</td><td>Yakıt tüketimi ve emisyon için yaygın bir vekil ölçüttür.</td></tr>
+    <tr><td>Geçen araç (taşıt/sa)</td><td>Kapasite kullanımı.</td></tr>
+    <tr><td>En büyük ve ortalama kuyruk</td><td>Geri taşma riski ve depolama ihtiyacı.</td></tr>
+  </table>
+  <p style="margin-top:10px">Hizmet düzeyi eşikleri, sinyalli kavşaklar için HCM'deki ortalama kontrol gecikmesi sınırlarıdır. A ≤ 10 s, B 10–20 s, C 20–35 s, D 35–55 s, E 55–80 s ve F &gt; 80 s <a class="cite" data-ref="hcm2010" href="#method">(TRB, 2010)</a>.</p>
 
-function mkStats(el){ el.innerHTML=['Ort. gecikme','Geçen araç','Kuyrukta','Faz değişimi'].map(k=>`<div class="tile"><div class="k">${k}</div><div class="v">–</div></div>`).join(''); return [...el.querySelectorAll('.v')]; }
-const stF=mkStats($('stF')), stX=mkStats($('stX'));
+  <h2 id="m9">9. Deney tasarımı ve istatistiksel analiz</h2>
+  <ul>
+    <li><b>Isınma ve tekrar:</b> Başlangıçtaki boş kavşak etkisini dışlamak için ilk 5 dakikada üretilen araçlar ölçüme katılmaz. Her kombinasyon n kez bağımsız tohumla tekrarlanır <a class="cite" data-ref="law2015" href="#method">(Law, 2015)</a>.</li>
+    <li><b>Güven aralığı:</b> \(\bar x \pm t_{0{,}975,\,n-1}\, s/\sqrt n\).</li>
+    <li><b>Anlamlılık:</b> Ortak tohumlar sayesinde gözlemler eşleştirilmiştir. Bu nedenle farklar \(\Delta_r=d^{B}_r-d^{A}_r\) üzerinden eşleştirilmiş t-testi uygulanır: \(t=\bar\Delta/(s_\Delta/\sqrt n)\). Çoklu karşılaştırmalarda birinci tür hatayı denetlemek için p-değerleri Holm–Bonferroni yöntemiyle düzeltilir <a class="cite" data-ref="holm1979" href="#method">(Holm, 1979)</a>.</li>
+    <li><b>Genelleme:</b> GA ve Q-öğrenme eğitim tohumlarında (101, 202) eğitilir. Raporlanan test sonuçları, eğitimde hiç görülmemiş beş tohumla (303–707) hesaplanır.</li>
+  </ul>
 
-// kural tablosu
-const rt=$('rules');
-rt.innerHTML=`<thead><tr><th class="rh">Yeşil ↓ · Kırmızı →</th>${SETS_IN.map(s=>`<th>${s}</th>`).join('')}</tr></thead><tbody>${
-  SETS_IN.map((s,a)=>`<tr><th class="rh">${s}</th>${[0,1,2].map(b=>`<td><button data-k="${a*3+b}"><span class="lab"></span><span class="w"></span></button></td>`).join('')}</tr>`).join('')}</tbody>`;
-const ruleBtns=[...rt.querySelectorAll('button')];
-ruleBtns.forEach(bt=>bt.addEventListener('click',()=>{ const k=+bt.dataset.k; P.rules[k]=(P.rules[k]+1)%4; }));
-$('rulesReset').addEventListener('click',()=>{ P=clone(DEFAULT_P); });
+  <h2 id="refs">Kaynakça</h2>
+  <ol class="refs">
+    <li id="ref-abdulhai2003">Abdulhai, B., Pringle, R. ve Karakoulas, G. J. (2003). Reinforcement learning for true adaptive traffic signal control. <i>Journal of Transportation Engineering</i>, 129(3), 278–285. <a href="https://doi.org/10.1061/(ASCE)0733-947X(2003)129:3(278)">doi:10.1061/(ASCE)0733-947X(2003)129:3(278)</a></li>
+    <li id="ref-cordon2001">Cordón, O., Herrera, F., Hoffmann, F. ve Magdalena, L. (2001). <i>Genetic Fuzzy Systems: Evolutionary Tuning and Learning of Fuzzy Knowledge Bases</i>. World Scientific.</li>
+    <li id="ref-goldberg1989">Goldberg, D. E. (1989). <i>Genetic Algorithms in Search, Optimization, and Machine Learning</i>. Addison-Wesley.</li>
+    <li id="ref-herrera2008">Herrera, F. (2008). Genetic fuzzy systems: Taxonomy, current research trends and prospects. <i>Evolutionary Intelligence</i>, 1, 27–46. <a href="https://doi.org/10.1007/s12065-007-0001-5">doi:10.1007/s12065-007-0001-5</a></li>
+    <li id="ref-holland1975">Holland, J. H. (1975). <i>Adaptation in Natural and Artificial Systems</i>. University of Michigan Press.</li>
+    <li id="ref-holm1979">Holm, S. (1979). A simple sequentially rejective multiple test procedure. <i>Scandinavian Journal of Statistics</i>, 6(2), 65–70.</li>
+        <li id="ref-koukol2015">Koukol, M., Zajíčková, L., Marek, L. ve Tuček, P. (2015). Fuzzy logic in traffic engineering: A review on signal control. <i>Mathematical Problems in Engineering</i>, 2015, 979160. <a href="https://doi.org/10.1155/2015/979160">doi:10.1155/2015/979160</a></li>
+    <li id="ref-lan2004">Lan, C.-J. (2004). New optimal cycle length formulation for pretimed signals at isolated intersections. <i>Journal of Transportation Engineering</i>, 130(5), 637–647. <a href="https://doi.org/10.1061/(ASCE)0733-947X(2004)130:5(637)">doi:10.1061/(ASCE)0733-947X(2004)130:5(637)</a></li>
+    <li id="ref-law2015">Law, A. M. (2015). <i>Simulation Modeling and Analysis</i> (5. baskı). McGraw-Hill.</li>
+    <li id="ref-lopez2018">Lopez, P. A., Behrisch, M., Bieker-Walz, L., Erdmann, J., Flötteröd, Y.-P., Hilbrich, R., Lücken, L., Rummel, J., Wagner, P. ve Wießner, E. (2018). Microscopic traffic simulation using SUMO. <i>21st IEEE International Conference on Intelligent Transportation Systems (ITSC)</i>, 2575–2582. <a href="https://doi.org/10.1109/ITSC.2018.8569938">doi:10.1109/ITSC.2018.8569938</a></li>
+    <li id="ref-mamdani1975">Mamdani, E. H. ve Assilian, S. (1975). An experiment in linguistic synthesis with a fuzzy logic controller. <i>International Journal of Man-Machine Studies</i>, 7(1), 1–13. <a href="https://doi.org/10.1016/S0020-7373(75)80002-2">doi:10.1016/S0020-7373(75)80002-2</a></li>
+    <li id="ref-niittymaki2000">Niittymäki, J. ve Pursula, M. (2000). Signal control using fuzzy logic. <i>Fuzzy Sets and Systems</i>, 116(1), 11–22. <a href="https://doi.org/10.1016/S0165-0114(99)00034-2">doi:10.1016/S0165-0114(99)00034-2</a></li>
+    <li id="ref-pappis1977">Pappis, C. P. ve Mamdani, E. H. (1977). A fuzzy logic controller for a traffic junction. <i>IEEE Transactions on Systems, Man, and Cybernetics</i>, 7(10), 707–717. <a href="https://doi.org/10.1109/TSMC.1977.4309605">doi:10.1109/TSMC.1977.4309605</a></li>
+    <li id="ref-trabia1999">Trabia, M. B., Kaseko, M. S. ve Ande, M. (1999). A two-stage fuzzy logic controller for traffic signals. <i>Transportation Research Part C: Emerging Technologies</i>, 7(6), 353–367.</li>
+    <li id="ref-hcm2010">Transportation Research Board (2010). <i>Highway Capacity Manual 2010</i>. TRB, Washington, D.C.</li>
+    <li id="ref-stm2015">Urbanik, T. vd. (2015). <i>Signal Timing Manual – Second Edition</i> (NCHRP Report 812). Transportation Research Board. <a href="https://doi.org/10.17226/22097">doi:10.17226/22097</a></li>
+    <li id="ref-watkins1992">Watkins, C. J. C. H. ve Dayan, P. (1992). Q-learning. <i>Machine Learning</i>, 8(3–4), 279–292. <a href="https://doi.org/10.1007/BF00992698">doi:10.1007/BF00992698</a></li>
+    <li id="ref-webster1958">Webster, F. V. (1958). <i>Traffic Signal Settings</i> (Road Research Technical Paper No. 39). HMSO, Londra.</li>
+    <li id="ref-wei2018">Wei, H., Zheng, G., Yao, H. ve Li, Z. (2018). IntelliLight: A reinforcement learning approach for intelligent traffic light control. <i>Proceedings of the 24th ACM SIGKDD International Conference on Knowledge Discovery &amp; Data Mining</i>, 2496–2505.</li>
+    <li id="ref-zadeh1965">Zadeh, L. A. (1965). Fuzzy sets. <i>Information and Control</i>, 8(3), 338–353. <a href="https://doi.org/10.1016/S0019-9958(65)90241-X">doi:10.1016/S0019-9958(65)90241-X</a></li>
+  </ol>
+  </div>
+</section>
 
-function phaseHTML(sim){
-  const st=sim.state==='green'?'yeşil':sim.state==='yellow'?'sarı':'tüm yönler kırmızı';
-  const col=sim.state==='green'?C.go:sim.state==='yellow'?C.amber:C.red;
-  return `<span class="lamp" style="background:${col}"></span>${PHASE_NAMES[sim.phase]} ${st} · ${fmt(sim.stateT,0)} s`;
-}
-function fillStats(t,sim){
-  t[0].innerHTML=`${fmt(sim.avgDelay())} <small>s/araç</small>`;
-  t[1].textContent=sim.crossed; t[2].textContent=sim.queued(); t[3].textContent=sim.switches;
-}
+<!-- =================== ANALİZLER =================== -->
+<section class="view" id="v-analyses">
+  <div class="eyebrow">Araştırma planı</div>
+  <h1>Analizler</h1>
+  <p class="lead">Projenin yanıtlamayı hedeflediği araştırma soruları, her soruyu sınayan analizler ve bu analizlerin simülatörde nasıl yürütüleceği aşağıda listelenmiştir. "Uygulamada" etiketli analizler doğrudan bu sitede çalıştırılabilir. "Önerilen" etiketliler projenin genişletilmesi için önerilen analizlerdir.</p>
 
-function render(){
-  drawInter($('cvF'),simF,C.fuzzy); drawInter($('cvX'),simX,C.fixed);
-  $('phF').innerHTML=phaseHTML(simF); $('phX').innerHTML=phaseHTML(simX);
-  fillStats(stF,simF); fillStats(stX,simX);
-  const L_=simF.ctrl.last;
-  $('decF').innerHTML=L_?`Son karar (${mmss(L_.t)}): yeşil yönde <b>${L_.qG}</b>, kırmızı yönde <b>${L_.qR}</b> araç → <b>${L_.act}</b>`:'İlk karar en az 7 s yeşilden sonra verilir.';
-  $('decX').innerHTML=`Her faz <b>${fixedG} s</b> yeşil + ${YELLOW} s sarı + ${ALLRED} s tüm kırmızı. Döngü süresi ${2*(fixedG+YELLOW+ALLRED)} s.`;
-  $('clock').textContent=mmss(simF.t);
-  // karşılaştırma
-  const df=simF.avgDelay(), dx=simX.avgDelay();
-  if(simF.t<60||dx<=0) $('verdict').innerHTML='Simülasyon ısınıyor… Karşılaştırma ilk dakikadan sonra görünür.';
-  else{ const pct=(dx-df)/dx*100;
-    $('verdict').innerHTML=pct>=0?`Bu akışta bulanık kontrol, araç başına ortalama gecikmeyi sabit süreli sinyale göre <b style="color:var(--fuzzy)">%${fmt(pct,0)} azaltıyor</b> (${fmt(df)} s / ${fmt(dx)} s).`
-      :`Bu akışta sabit süreli sinyal şimdilik <b style="color:var(--fixed)">%${fmt(-pct,0)} daha az gecikmeyle</b> önde (${fmt(dx)} s / ${fmt(df)} s). Kuralları değiştirmeyi ya da GA optimizasyonunu deneyin.`; }
-  // canlı çıkarım
-  const qG=simF.phaseCount(simF.phase), qR=simF.phaseCount(1-simF.phase), r=infer(P,qG,qR,true);
-  $('vG').textContent=`= ${qG} (${PHASE_NAMES[simF.phase]})`; $('vR').textContent=`= ${qR} (${PHASE_NAMES[1-simF.phase]})`; $('vO').textContent=`= ${fmt(r.out)} s`;
-  drawMF($('mfG'),P.g,SETS_IN,IN_MAX,Math.min(qG,IN_MAX),r.muG,null,null);
-  drawMF($('mfR'),P.r,SETS_IN,IN_MAX,Math.min(qR,IN_MAX),r.muR,null,null);
-  drawMF($('mfO'),P.o,SETS_OUT,OUT_MAX,null,[],r.agg,r.out,'s');
-  ruleBtns.forEach((bt,k)=>{ const f=r.fire[k]; bt.querySelector('.lab').textContent=SETS_OUT[P.rules[k]]; bt.querySelector('.w').textContent='μ = '+fmt(f,2);
-    bt.style.background=rgba(C.fuzzy,0.06+0.6*f); bt.style.borderColor=f>0?C.fuzzy:C.line; bt.style.color=f>0.55?'#fff':C.ink; bt.querySelector('.w').style.color=f>0.55?'#fff':C.muted; });
-  // kuyruk grafiği
-  const t1=Math.max(600,hist.t[hist.t.length-1]||0), t0=t1-600, ticks=[]; for(let v=Math.ceil(t0/120)*120;v<=t1;v+=120) ticks.push(v);
-  drawLines($('cvQ'),[{xs:hist.t,ys:hist.x,color:C.fixed},{xs:hist.t,ys:hist.f,color:C.fuzzy}],{xMin:t0,xMax:t1,xTicks:ticks,xFmt:mmss,yMax:5});
-}
+  <section class="card" id="findings">
+    <div class="card-head"><h2>Son deneyin bulguları</h2><span class="sub">Deney laboratuvarında çalıştırılan son deneyden otomatik özetlenir</span></div>
+    <div id="findBody" class="empty">Henüz deney çalıştırılmadı. Deney Laboratuvarı'nda bir deney çalıştırdığınızda bulgular burada listelenir.</div>
+  </section>
 
-// ---------- Döngü ----------
-let acc=0,lastTs=0;
-function frame(ts){
-  const rdt=lastTs?Math.min(0.1,(ts-lastTs)/1000):0; lastTs=ts;
-  if(running&&!gaBusy){ acc+=rdt*speed; let n=0;
-    while(acc>=DT_VIS&&n<1000){ simF.step(DT_VIS); simX.step(DT_VIS); acc-=DT_VIS; n++; if(simF.t-lastRec>=2-1e-9) record(); } }
-  render(); requestAnimationFrame(frame);
-}
+  <section class="card">
+    <div class="card-head"><h2>Araştırma soruları ve hipotezler</h2></div>
+    <table class="data">
+      <tr><th style="width:70px">No</th><th>Soru</th><th>Hipotez</th></tr>
+      <tr><td>AS1</td><td>Bulanık denetleyici, sabit süreli ve Webster planlarına göre gecikmeyi azaltır mı?</td><td>H1: Değişken talepli senaryolarda bulanık denetleyicinin ortalama gecikmesi anlamlı olarak daha düşüktür.</td></tr>
+      <tr><td>AS2</td><td>Bulanık denetleyici, sahadaki standart uyarlanabilir yöntem olan araç tetiklemeli kontrolden üstün müdür?</td><td>H2: Elle tasarlanmış bulanık denetleyici araç tetiklemeliye denktir. GA ile ayarlanmış sürüm ise üstündür.</td></tr>
+      <tr><td>AS3</td><td>GA ile ayar, görülmemiş trafiğe genellenir mi?</td><td>H3: Test tohumlarındaki iyileşme, eğitim tohumlarındakinin büyük bölümünü korur.</td></tr>
+      <tr><td>AS4</td><td>İyileşmenin kaynağı üyelik fonksiyonları mı, kural tabanı mı?</td><td>H4: Kural öğrenimi, yalnız üyelik ayarından daha büyük katkı sağlar.</td></tr>
+      <tr><td>AS5</td><td>Yorumlanabilir bulanık sistem, kara kutu sayılabilecek bir pekiştirmeli öğrenme ajanına göre nerede durur?</td><td>H5: GA ile ayarlanmış bulanık sistem, aynı bilgiyle eğitilen tablo tabanlı Q-öğrenmeye denk ya da ondan iyidir.</td></tr>
+      <tr><td>AS6</td><td>Hangi talep düzeyinde uyarlanabilir kontrolün avantajı kaybolur?</td><td>H6: Avantaj orta talepte en büyüktür. Kapasiteye yaklaştıkça tüm yöntemler doygunluğa girer ve fark daralır.</td></tr>
+    </table>
+  </section>
 
-// ---------- Genetik algoritma ----------
-let gaBusy=false, gaBest=null;
-const tick=()=>new Promise(r=>setTimeout(r,0));
-function evaluate(mk,demand,seeds,dur,dt){ let s=0; const n=Math.round(dur/dt); for(const sd of seeds){ const sim=new Sim(sd,demand,mk()); for(let i=0;i<n;i++) sim.step(dt); s+=sim.avgDelay(); } return s/seeds.length; }
-function randn(){ let u=0,v=0; while(!u)u=Math.random(); while(!v)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
-function fixC(c,max){ const n=c.length; c.sort((a,b)=>a-b); for(let k=0;k<n;k++) c[k]=clamp(c[k],0,max);
-  for(let k=1;k<n;k++) if(c[k]<c[k-1]+0.5) c[k]=c[k-1]+0.5;
-  if(c[n-1]>max){ c[n-1]=max; for(let k=n-2;k>=0;k--) if(c[k]>c[k+1]-0.5) c[k]=c[k+1]-0.5; } return c; }
-function randInd(){ const ru=(n,m)=>fixC(Array.from({length:n},()=>Math.random()*m),m);
-  return {g:ru(3,IN_MAX),r:ru(3,IN_MAX),o:ru(4,OUT_MAX),rules:Array.from({length:9},()=>Math.floor(Math.random()*4))}; }
-function cross(a,b){ const mx=(x,y)=>x.map((v,i)=>v+(Math.random()*1.4-0.2)*(y[i]-v));
-  return {g:mx(a.g,b.g),r:mx(a.r,b.r),o:mx(a.o,b.o),rules:a.rules.map((v,i)=>Math.random()<0.5?v:b.rules[i])}; }
-function mutate(p){ const m=(arr,s)=>{ for(let i=0;i<arr.length;i++) if(Math.random()<0.3) arr[i]+=randn()*s; };
-  m(p.g,2); m(p.r,2); m(p.o,1.5);
-  for(let i=0;i<9;i++) if(Math.random()<0.12) p.rules[i]=clamp(p.rules[i]+(Math.random()<0.5?-1:1),0,3);
-  fixC(p.g,IN_MAX); fixC(p.r,IN_MAX); fixC(p.o,OUT_MAX); return p; }
-function tour(pop,fit){ let b=-1; for(let i=0;i<3;i++){ const j=Math.floor(Math.random()*pop.length); if(b<0||fit[j]<fit[b]) b=j; } return pop[b]; }
+  <section class="card">
+    <div class="card-head"><h2>Analiz listesi</h2></div>
+    <div class="tbl-wrap"><table class="data" id="anTable">
+      <tr><th style="width:40px">#</th><th>Analiz</th><th>Amaç ve yöntem</th><th>Ölçüt</th><th>Nasıl çalıştırılır</th><th>Durum</th></tr>
+      <tr><td>1</td><td><b>Temel performans karşılaştırması</b></td><td>6 denetleyici × 9 senaryo, 10 tekrar, 30 dk, 5 dk ısınma.</td><td>Ortalama gecikme ± %95 GA</td><td>Deney Laboratuvarı → tüm senaryo ve denetleyiciler</td><td><span class="chip ok">Uygulamada</span></td></tr>
+      <tr><td>2</td><td><b>İstatistiksel anlamlılık</b></td><td>Referans denetleyiciye karşı eşleştirilmiş t-testi, Holm düzeltmesi (AS1, AS2, AS5).</td><td>Δ%, t, p, p<sub>Holm</sub></td><td>Deney Laboratuvarı → Anlamlılık tablosu</td><td><span class="chip ok">Uygulamada</span></td></tr>
+      <tr><td>3</td><td><b>Hizmet düzeyi (LOS) analizi</b></td><td>Ortalama gecikmenin HCM eşiklerine göre A–F sınıflandırması.</td><td>LOS sınıfı</td><td>Deney Laboratuvarı → sonuç tablosundaki rozetler</td><td><span class="chip ok">Uygulamada</span></td></tr>
+      <tr><td>4</td><td><b>Çok ölçütlü değerlendirme</b></td><td>Verimlilik, adalet, çevresel vekil ve kapasite ölçütlerinin birlikte incelenmesi.</td><td>95p gecikme, duruş/araç, taşıt/sa, kuyruk</td><td>Deney Laboratuvarı → "Ölçüt" seçimi</td><td><span class="chip ok">Uygulamada</span></td></tr>
+      <tr><td>5</td><td><b>Talep duyarlılık analizi</b></td><td>Talebin 0,3–1,7 katına ölçeklenmesiyle gecikme–talep eğrileri (AS6).</td><td>Gecikme–talep eğrisi</td><td>Deney Laboratuvarı → Talep duyarlılık analizi</td><td><span class="chip ok">Uygulamada</span></td></tr>
+      <tr><td>6</td><td><b>GA yakınsama analizi</b></td><td>Nesil boyunca en iyi ve ortalama uygunluk. Erken yakınsama ve çeşitlilik kaybının izlenmesi.</td><td>Uygunluk–nesil eğrisi</td><td>Optimizasyon → Genetik-bulanık</td><td><span class="chip ok">Uygulamada</span></td></tr>
+      <tr><td>7</td><td><b>Genelleme (aşırı uyum) analizi</b></td><td>Eğitim ve test tohumlarındaki performans farkı (AS3).</td><td>Eğitim / test gecikmesi</td><td>Optimizasyon → sonuç tablosu</td><td><span class="chip ok">Uygulamada</span></td></tr>
+      <tr><td>8</td><td><b>Ablasyon: ayar ve öğrenme</b></td><td>Yalnız üyelik, yalnız kural ve ikisi birlikte. Herrera'nın ayar/öğrenme ayrımına göre (AS4).</td><td>Test gecikmesi</td><td>Optimizasyon → "Optimize edilen" seçeneği ile üç ayrı koşu</td><td><span class="chip ok">Uygulamada</span></td></tr>
+      <tr><td>9</td><td><b>Senaryolar arası sağlamlık</b></td><td>Tek senaryoda eğitilen çözümün diğer senaryolardaki başarısı ile karma eğitimin karşılaştırılması.</td><td>Senaryo başına gecikme</td><td>GA'yı tek senaryoda çalıştır, uygula, sonra Deney Laboratuvarı'nda tüm senaryoları dene</td><td><span class="chip ok">Uygulamada</span></td></tr>
+      <tr><td>10</td><td><b>Q-öğrenme öğrenme eğrisi ve politika</b></td><td>Bölüm başına gecikme ve öğrenilen politikanın ısı haritası (AS5).</td><td>Gecikme–bölüm, politika haritası</td><td>Optimizasyon → Q-öğrenme ajanı</td><td><span class="chip ok">Uygulamada</span></td></tr>
+      <tr><td>11</td><td><b>Yorumlanabilirlik analizi</b></td><td>Öğrenilen kuralların uzman kurallarıyla ve Q politikasıyla karşılaştırılması. Örneğin "kırmızıda çok araç varken GA hangi koşulda yeşili uzatıyor?"</td><td>Nitel</td><td>Optimizasyon → öğrenilen kural tabanı ve politika haritası</td><td><span class="chip ok">Uygulamada</span></td></tr>
+      <tr><td>12</td><td><b>Ani olaya tepki</b></td><td>Batı kolundaki 3 dakikalık talep patlaması sırasında kuyruk zaman serisinin incelenmesi.</td><td>Kuyruk–zaman, toparlanma süresi</td><td>Simülatör → "Ani talep artışı" senaryosu</td><td><span class="chip ok">Uygulamada</span></td></tr>
+      <tr><td>13</td><td><b>Hesaplama maliyeti</b></td><td>Karar başına çıkarım süresi. Gerçek zamanlı uygulanabilirlik için gömülü donanımla kıyaslanabilir.</td><td>µs/karar</td><td>Bu sayfada ölçülür: <b id="inferCost">…</b></td><td><span class="chip ok">Uygulamada</span></td></tr>
+      <tr><td>14</td><td><b>Parametre duyarlılığı</b></td><td>Maksimum yeşil, karar eşiği (1,5 s) ve en kısa yeşilin sonuçlara etkisi.</td><td>Gecikme</td><td>Maks. yeşil kaydırıcısıyla manuel. Sistematik tarama önerilir.</td><td><span class="chip todo">Önerilen</span></td></tr>
+      <tr><td>15</td><td><b>Dış geçerlilik: SUMO doğrulaması</b></td><td>Aynı denetleyicilerin TraCI arayüzüyle SUMO'da çalıştırılması ve sonuçların karşılaştırılması.</td><td>Gecikme farkı</td><td>Python + SUMO/TraCI</td><td><span class="chip todo">Önerilen</span></td></tr>
+      <tr><td>16</td><td><b>Gerçek veriyle kalibrasyon</b></td><td>Belediye trafik sayım verileriyle senaryo oranlarının ve profillerin belirlenmesi.</td><td>—</td><td>Senaryo kaydırıcılarına gerçek sayımlar girilerek</td><td><span class="chip todo">Önerilen</span></td></tr>
+      <tr><td>17</td><td><b>Ağ ölçeğine genişletme</b></td><td>Ardışık kavşaklarda koordinasyon (yeşil dalga) ve geri taşma etkileşimleri.</td><td>Koridor gecikmesi</td><td>Modelin çok kavşaklı hale getirilmesi</td><td><span class="chip todo">Önerilen</span></td></tr>
+    </table></div>
+  </section>
 
-function drawGA(h,gens,refs){
-  const xs=h.map((_,i)=>i), ticks=[]; const st=gens>12?5:gens>6?2:1; for(let g=0;g<=gens;g+=st) ticks.push(g);
-  drawLines($('cvGA'),[{xs,ys:h.map(e=>e.mean),color:C.muted,w:1.5},{xs,ys:h.map(e=>e.best),color:C.fuzzy,w:2.2,dots:true}],
-    {xMin:0,xMax:gens,xTicks:ticks,xFmt:v=>String(v),refs,yMax:0});
-}
-function showResults(R){
-  const rows=[
-    {nm:`Sabit süreli · mevcut (${R.fg} s)`,v:R.fixedNow,c:C.fixed},
-    {nm:`Sabit süreli · en iyi süre (${R.bestG} s)`,v:R.bestGv,c:C.fixed},
-    {nm:'Bulanık · başlangıç kuralları',v:R.startV,c:C.s[1]},
-    {nm:'Bulanık · GA ile optimize',v:R.v,c:C.fuzzy},
-  ];
-  const mx=Math.max(...rows.map(r=>r.v));
-  const imp=(R.bestGv-R.v)/R.bestGv*100;
-  $('gaResults').innerHTML=`<div class="fz-title"><b>Sonuçlar</b> · araç başına ortalama gecikme (720 s × 2 akış)</div>`+
-    rows.map(r=>`<div class="res-row"><div><div class="nm">${r.nm}</div><div class="bar" style="width:${(r.v/mx*100).toFixed(1)}%;background:${r.c}"></div></div><div class="val">${fmt(r.v)} s</div></div>`).join('')+
-    `<p class="muted" style="margin-top:12px">GA ile optimize edilen bulanık kontrolcü, en iyi sabit süreli sinyale göre gecikmeyi <b style="color:var(--${imp>=0?'fuzzy':'fixed'})">%${fmt(Math.abs(imp),0)} ${imp>=0?'azaltıyor':'artırıyor'}</b>.</p>
-    <div class="row"><button id="gaApply" class="primary">GA çözümünü canlı simülasyona uygula</button><button id="gaFix">Sabit süreyi ${R.bestG} s yap</button></div>`;
-  $('gaApply').addEventListener('click',()=>{ P=clone(R.p); reset(true); window.scrollTo({top:0,behavior:'smooth'}); });
-  $('gaFix').addEventListener('click',()=>{ fixedG=R.bestG; sliderDefs.forEach(d=>d.sync()); reset(true); });
-}
+  <div class="grid2" style="margin-top:16px">
+    <section class="card">
+      <div class="card-head"><h2>Geçerlilik tehditleri</h2></div>
+      <ul style="margin:0;padding-left:20px;font-size:14px">
+        <li><b>İç geçerlilik:</b> Model basitleştirilmiştir (tek şerit, dönüş yok, homojen sürücü). Mutlak gecikme değerleri gerçeği birebir yansıtmaz, göreli karşılaştırmalar daha güvenilirdir.</li>
+        <li><b>Algılama varsayımı:</b> Bulanık ve Q-öğrenme denetleyicileri 90 m'lik yaklaşımdaki araç sayısını kusursuz bilir (kamera ya da çoklu dedektör varsayımı). Araç tetiklemeli yalnızca tek noktadaki dedektörü kullanır. Bu bilgi farkı sonuçlarda raporlanmalıdır.</li>
+        <li><b>Aşırı uyum:</b> GA ve Q-öğrenme, eğitildikleri senaryo ve tohumlara uyum sağlayabilir. Bu nedenle test tohumları ayrıdır.</li>
+        <li><b>Rakip yöntem ayarı:</b> Karşılaştırmanın adil olması için sabit süreli sinyal yerine Webster planı, araç tetiklemeli kontrol için de standart parametreler kullanılır.</li>
+        <li><b>İstatistik:</b> Çok sayıda karşılaştırma yapıldığı için Holm düzeltmesi uygulanır. Etki büyüklüğü (Δ%) p-değeriyle birlikte yorumlanmalıdır.</li>
+      </ul>
+    </section>
+    <section class="card">
+      <div class="card-head"><h2>Önerilen rapor yapısı</h2></div>
+      <ol style="margin:0;padding-left:20px;font-size:14px">
+        <li>Giriş: problem, motivasyon, araştırma soruları (AS1–AS6)</li>
+        <li>Literatür: bulanık sinyal kontrolü, genetik-bulanık sistemler, pekiştirmeli öğrenme</li>
+        <li>Yöntem: simülasyon modeli, denetleyiciler, GA ve Q-öğrenme tasarımı</li>
+        <li>Deney tasarımı: senaryolar, ölçütler, istatistiksel yöntem</li>
+        <li>Bulgular: Analiz 1–13 (tablolar ve grafikler bu siteden CSV olarak alınabilir)</li>
+        <li>Tartışma: yorumlanabilirlik ve performans dengesi, geçerlilik tehditleri</li>
+        <li>Sonuç ve gelecek çalışmalar: Analiz 14–17</li>
+      </ol>
+    </section>
+  </div>
+</section>
+</main>
 
-$('gaRun').addEventListener('click',async()=>{
-  if(gaBusy) return; gaBusy=true; $('gaRun').disabled=true;
-  const snap={rates:cfg.rates.slice(),dyn:cfg.dyn}, dem=makeDemand(snap), mg=maxG, fg=fixedG;
-  const SEEDS=[101,202], DUR=720, DT=0.25;
-  const fz=p=>evaluate(()=>FuzzyCtrl(()=>p,()=>mg),dem,SEEDS,DUR,DT);
-  const fx=g=>evaluate(()=>FixedCtrl(()=>g),dem,SEEDS,DUR,DT);
-  const popN=+$('gaPop').value, gens=+$('gaGen').value;
-  const total=1+11+1+popN+gens*(popN-2); let done=0;
-  const prog=m=>{ $('gaBar').style.width=(100*done/total).toFixed(1)+'%'; $('gaStatus').textContent=m; };
-  prog('Sabit süreler taranıyor…'); await tick();
-  const fixedNow=fx(fg); done++;
-  let bestG=10,bestGv=Infinity;
-  for(let g=10;g<=60;g+=5){ const v=fx(g); done++; if(v<bestGv){bestGv=v;bestG=g;} prog(`Sabit süre taranıyor: ${g} s`); await tick(); }
-  const startP=clone(P), startV=fz(startP); done++;
-  let pop=[startP,clone(DEFAULT_P)]; while(pop.length<popN) pop.push(randInd());
-  let fit=[]; for(let i=0;i<pop.length;i++){ fit.push(fz(pop[i])); done++; prog(`Başlangıç popülasyonu ${i+1}/${popN}`); await tick(); }
-  const h=[], refs=[{y:bestGv,color:C.fixed}];
-  for(let g=0;g<=gens;g++){
-    const idx=[...pop.keys()].sort((a,b)=>fit[a]-fit[b]); pop=idx.map(i=>pop[i]); fit=idx.map(i=>fit[i]);
-    h.push({best:fit[0],mean:fit.reduce((a,b)=>a+b,0)/fit.length}); drawGA(h,gens,refs);
-    prog(`Nesil ${g}/${gens} · en iyi ${fmt(fit[0])} s`); await tick();
-    if(g===gens) break;
-    const np=[clone(pop[0]),clone(pop[1])], nf=[fit[0],fit[1]];
-    while(np.length<popN){ const c=mutate(cross(tour(pop,fit),tour(pop,fit))); np.push(c); nf.push(fz(c)); done++;
-      if(np.length%2===0){ prog(`Nesil ${g+1}/${gens} · birey ${np.length}/${popN}`); await tick(); } }
-    pop=np; fit=nf;
-  }
-  done=total; prog(`Tamamlandı · en iyi ${fmt(fit[0])} s/araç`);
-  gaBest={p:clone(pop[0]),v:fit[0],fixedNow,fg,bestG,bestGv,startV};
-  showResults(gaBest); drawGA(h,gens,refs);
-  gaBusy=false; $('gaRun').disabled=false; lastTs=0;
-});
+<footer>Bulanık Trafik · Açık kaynak eğitim ve araştırma simülatörü · Yöntem ayrıntıları ve kaynakça için "Yöntem ve Literatür" sekmesine bakın.</footer>
 
-drawLines($('cvGA'),[],{xMin:0,xMax:15,xTicks:[0,5,10,15],xFmt:String,yMax:10});
-reset(false);
-requestAnimationFrame(frame);
-})();
-</script>
+<script defer src="vendor/katex/katex.min.js"></script>
+<script defer src="vendor/katex/contrib/auto-render.min.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>

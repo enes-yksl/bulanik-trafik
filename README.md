@@ -1,31 +1,81 @@
-# Bulanık Mantıkla Trafik Işığı Kontrolü
+# Bulanık Trafik — Bulanık Mantıkla Uyarlanabilir Sinyal Kontrolü
 
-Tarayıcıda çalışan etkileşimli bir simülatör. Aynı araç akışı iki özdeş kavşağa gönderilir: biri **bulanık çıkarım sistemiyle** (Mamdani), diğeri **sabit süreli** sinyalle yönetilir. Üyelik fonksiyonları ve kural tabanı **genetik algoritmayla** optimize edilebilir.
+İzole bir kavşakta trafik sinyali kontrolü için **bulanık çıkarım (Mamdani)**, **genetik-bulanık optimizasyon** ve **Q-öğrenme** yöntemlerini klasik yöntemlerle karşılaştıran, tarayıcıda çalışan bir araştırma ve eğitim simülatörü.
 
-**Canlı demo:** https://enes-yksl.github.io/bulanik-trafik
+**Canlı demo:** https://enes-yksl.github.io/bulanik-trafik/
 
-## Özellikler
+## Bölümler
 
-- Yan yana iki kavşak, aynı rastgele araç akışı (adil karşılaştırma)
-- Yön başına araç yoğunluğu, hazır senaryolar ve yönler arasında kayan dalgalı talep
-- Canlı bulanık çıkarım paneli: üyelik dereceleri, kural ateşlenme dereceleri, birleştirilmiş çıktı ve ağırlık merkezi
-- Tıklanarak düzenlenebilen 3×3 kural tabanı
-- Genetik algoritma: 10 üyelik fonksiyonu merkezi + 9 kural sonucu birlikte optimize edilir; sabit sinyalin en iyi yeşil süresi de taranır
-
-## Bulanık sistem
-
-| | |
+| Sekme | İçerik |
 |---|---|
-| Girdi 1 | Yeşil yöndeki araç sayısı (Az, Orta, Çok) |
-| Girdi 2 | Kırmızı yöndeki araç sayısı (Az, Orta, Çok) |
-| Çıktı | Yeşil uzatma süresi, s (Sıfır, Kısa, Orta, Uzun) |
-| Çıkarım | Mamdani; VE = min, birleştirme = max, durulaştırma = ağırlık merkezi |
-| Karar | En az 7 s yeşil; çıktı < 1,5 s ise faz değişir, değilse çıktı kadar uzatılır; maksimum yeşil sınırı |
+| **Simülatör** | Aynı rastgele araç akışı altında iki denetleyiciyi yan yana izleme. 9 senaryo ve 4 talep profili sunulur. Canlı bulanık çıkarım paneli ve düzenlenebilir kural tabanı vardır. |
+| **Deney Laboratuvarı** | Senaryo × denetleyici × tekrar biçiminde toplu deneyler. %95 güven aralığı, Holm düzeltmeli eşleştirilmiş t-testi, HCM hizmet düzeyi (LOS), çok ölçütlü sonuçlar, talep duyarlılık analizi ve CSV dışa aktarımı içerir. |
+| **Optimizasyon** | Genetik algoritmayla üyelik fonksiyonu ve kural tabanı arama. Ablasyon için üç mod vardır. Tablo tabanlı Q-öğrenme ajanı eğitilir ve politikası ısı haritasıyla gösterilir. Sonuçlar eğitim ve test tohumları ayrı tutularak raporlanır. |
+| **Yöntem ve Literatür** | Kuramsal temel, formüller, model varsayımları, deney tasarımı ve kaynakça. |
+| **Analizler** | Araştırma soruları ve hipotezler (AS1–AS6), 17 analizlik plan, geçerlilik tehditleri ve son deneyin otomatik bulguları. |
 
-## Araç modeli
+## Denetleyiciler
 
-Hız sınırı 50 km/sa, ivme 2 m/s², sürücü tepki süresi 1 s, durma aralığı 7 m, araçlar düz gider. Sarı 3 s + tüm kırmızı 2 s. Varışlar Poisson sürecidir.
+| Denetleyici | Açıklama |
+|---|---|
+| Sabit süreli | Her faz için kullanıcı tanımlı yeşil süresi |
+| Webster | Optimum döngü C₀ = (1,5L + 5) / (1 − Y) ve kritik akım oranına göre bölünen yeşil (Webster, 1958) |
+| Araç tetiklemeli | En kısa yeşil 7 s, geçiş süresi 3 s, varlık dedektörü 40 m geride, maksimum yeşil sınırı (Signal Timing Manual, 2015) |
+| Bulanık (Mamdani) | 2 girdi (yeşil ve kırmızı yöndeki araç sayısı), 1 çıktı (uzatma süresi), 9 kural. Min–max çıkarım, ağırlık merkezi durulaştırma |
+| Bulanık + GA | Üyelik merkezleri ve kural sonuçları genetik algoritmayla optimize edilmiş bulanık sistem |
+| Q-öğrenme | 144 durum × 2 eylem (sürdür / değiştir) tablo tabanlı ajan |
+
+## Örnek sonuç
+
+9 senaryo × 6 denetleyici × 10 tekrar, 30 dk simülasyon, 5 dk ısınma. Değerler araç başına ortalama gecikmedir (s). GA karma senaryoda eğitilmiştir.
+
+| Senaryo | Sabit | Webster | Tetiklemeli | Bulanık | Bulanık+GA | Q-öğrenme |
+|---|---|---|---|---|---|---|
+| Dengeli | 18,2 | 16,3 | 13,5 | 19,2 | **12,8** | 19,4 |
+| Ana yol – tali yol | 186,4 | 19,1 | 14,3 | 16,8 | **13,7** | 18,7 |
+| Kayan talep | 33,8 | 34,6 | 13,3 | 17,1 | **13,1** | 17,7 |
+| Ani artış | 32,7 | 28,7 | 17,2 | 22,0 | **16,6** | 25,4 |
+
+GA ile ayarlanmış bulanık denetleyici, Holm düzeltmeli eşleştirilmiş t-testine göre şu sonuçları verdi:
+- Sabit süreliye göre 9/9 senaryoda anlamlı olarak daha düşük gecikme.
+- Webster'e göre 7/9 senaryoda anlamlı olarak daha düşük gecikme.
+- Elle tasarlanmış bulanık sisteme göre 7/9 senaryoda anlamlı olarak daha düşük gecikme.
+- Araç tetiklemeli kontrole göre 8/9 senaryoda anlamlı fark yok (denk performans), 1 senaryoda anlamlı olarak daha iyi.
+
+Sonuçlar rastgele tohumlara ve GA koşusuna göre küçük farklılıklar gösterebilir.
 
 ## Çalıştırma
 
-Kurulum gerekmez: `index.html` dosyasını tarayıcıda açmanız yeterli.
+Kurulum gerekmez. Yerelde Web Worker'ın çalışması için dosyaları bir sunucu üzerinden açın:
+
+```bash
+python3 -m http.server 8000
+# http://localhost:8000
+```
+
+Dosya doğrudan `file://` ile açılırsa hesaplamalar sayfa içinde, daha yavaş çalışır.
+
+## Dosya yapısı
+
+```
+index.html        Arayüz, yöntem metni ve analiz planı
+css/style.css     Stil
+js/engine.js      Simülasyon motoru, denetleyiciler, istatistik, GA ve Q-öğrenme (DOM'suz)
+js/worker.js      Ağır hesaplamalar için Web Worker
+js/app.js         Arayüz mantığı ve grafikler
+vendor/katex/     Formül gösterimi (KaTeX, MIT lisansı)
+```
+
+## Temel kaynaklar
+
+- Zadeh, L. A. (1965). Fuzzy sets. *Information and Control*, 8(3), 338–353.
+- Mamdani, E. H. ve Assilian, S. (1975). An experiment in linguistic synthesis with a fuzzy logic controller. *Int. J. Man-Machine Studies*, 7(1), 1–13.
+- Pappis, C. P. ve Mamdani, E. H. (1977). A fuzzy logic controller for a traffic junction. *IEEE Trans. SMC*, 7(10), 707–717.
+- Webster, F. V. (1958). *Traffic Signal Settings*. Road Research Technical Paper No. 39.
+- Trabia, M. B., Kaseko, M. S. ve Ande, M. (1999). A two-stage fuzzy logic controller for traffic signals. *Transportation Research Part C*, 7(6), 353–367.
+- Niittymäki, J. ve Pursula, M. (2000). Signal control using fuzzy logic. *Fuzzy Sets and Systems*, 116(1), 11–22.
+- Herrera, F. (2008). Genetic fuzzy systems: taxonomy, current research trends and prospects. *Evolutionary Intelligence*, 1, 27–46.
+- Watkins, C. J. C. H. ve Dayan, P. (1992). Q-learning. *Machine Learning*, 8, 279–292.
+- Abdulhai, B., Pringle, R. ve Karakoulas, G. J. (2003). Reinforcement learning for true adaptive traffic signal control. *J. Transportation Engineering*, 129(3), 278–285.
+
+Tam kaynakça sitedeki "Yöntem ve Literatür" sekmesindedir.
