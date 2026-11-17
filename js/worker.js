@@ -1,5 +1,6 @@
 /* Ağır hesaplamalar (toplu deney, duyarlılık, GA, Q-öğrenme) arayüzü dondurmadan burada çalışır. */
-importScripts('engine.js', 'net.js');
+const V = (self.location.search.match(/v=([^&]+)/) || [])[1] || '';
+importScripts('engine.js?v=' + V, 'net.js?v=' + V);
 self.onmessage = (e) => {
   const { id, task, cfg } = e.data;
   if (cfg && cfg.ctx) {

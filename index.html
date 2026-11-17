@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="vendor/katex/katex.min.css">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=2026.11.17-5">
 </head>
 <body>
 <header class="top"><div class="top-in">
@@ -27,6 +27,7 @@
   </nav>
 </div></header>
 
+<div id="errBanner" style="display:none;max-width:1220px;margin:16px auto 0;padding:12px 16px;border-radius:10px;background:#fdecea;color:#7a1c1c;border:1px solid #f5c2c0;font-size:14px"></div>
 <main>
 <!-- =================== SİMÜLATÖR =================== -->
 <section class="view" id="v-simulator">
@@ -140,8 +141,8 @@
       <div class="fieldset"><div class="lg">Denetleyiciler <button class="small ghost" data-all="nlCt">Tümü / hiçbiri</button></div><div class="checks c2" id="nlCt"></div></div>
     </div>
     <div class="row" style="margin-top:14px">
-      <label class="inline">Tekrar <select id="nlReps"><option>3</option><option selected>5</option><option>10</option></select></label>
-      <label class="inline">Süre <select id="nlDur"><option value="900">15 dk</option><option value="1200" selected>20 dk</option><option value="1800">30 dk</option></select></label>
+      <label class="inline">Tekrar <select id="nlReps"><option>3</option><option>5</option><option selected>10</option></select></label>
+      <label class="inline">Süre <select id="nlDur"><option value="900">15 dk</option><option value="1200">20 dk</option><option value="1800" selected>30 dk</option></select></label>
       <label class="inline">Referans <select id="nlRef"></select></label>
       <button id="nlRun" class="primary">Ağ deneyini çalıştır</button>
       <button id="nlStop" class="ghost" disabled>Durdur</button>
@@ -318,11 +319,18 @@
 
   <h2 id="m2">2. Bulanık mantık ve Mamdani çıkarımı</h2>
   <p>Bulanık küme kavramı, bir elemanın bir kümeye [0, 1] aralığında kısmi üyeliğine izin verir <a class="cite" data-ref="zadeh1965" href="#method">(Zadeh, 1965)</a>. "Kuyruk uzun" gibi kesin sınırı olmayan dilsel ifadeler bu yolla sayısal olarak temsil edilir. Mamdani ve Assilian, bir operatörün sezgisel denetim kurallarını bulanık mantıkla otomatik bir denetim stratejisine dönüştürmüş ve böylece bugün kendi adlarıyla anılan çıkarım yapısını ortaya koymuştur <a class="cite" data-ref="mamdani1975" href="#method">(Mamdani ve Assilian, 1975)</a>.</p>
-  <p>Bu projedeki denetleyicinin iki girdisi vardır. \(q_G\), yeşil yöndeki araç sayısıdır. \(q_R\), kırmızı yöndeki araç sayısıdır. Her ikisi de fazın iki kolundan büyük olanıdır. Çıktı \(e\), yeşil uzatma süresidir. Girdiler {Az, Orta, Çok}, çıktı ise {Sıfır, Kısa, Orta, Uzun} dilsel değerleriyle tanımlanır. Üyelik fonksiyonları üçgen/omuz biçimindedir ve her noktada toplamları 1'dir (Ruspini bölüntüsü):</p>
+  <p>Bu projedeki denetleyicinin iki girdisi vardır. \(q_G\), yeşil yönde kuyrukta bekleyen ya da dur çizgisine 30 m'den yakın olan araç sayısıdır. Bu araçlar yaklaşık 2 s içinde çizgiye ulaşabilecek olanlardır. \(q_R\), kırmızı yöndeki 90 m'lik yaklaşımda bekleyen ve yaklaşan araç sayısıdır. Her iki girdi de fazın iki kolundan büyük olanıdır. Çıktı \(e\), yeşil uzatma süresidir. Girdiler {Az, Orta, Çok}, çıktı ise {Sıfır, Kısa, Orta, Uzun} dilsel değerleriyle tanımlanır. Üyelik fonksiyonları üçgen/omuz biçimindedir ve her noktada toplamları 1'dir (Ruspini bölüntüsü):</p>
   <div class="eq">\[ \sum_{k}\mu_{A_k}(x)=1,\qquad \mu_{A_k}(x)=\max\!\Big(0,\ \min\!\Big(\tfrac{x-c_{k-1}}{c_k-c_{k-1}},\ \tfrac{c_{k+1}-x}{c_{k+1}-c_k}\Big)\Big) \]</div>
   <p>Kural tabanı 3 × 3 = 9 kuraldan oluşur. Örneğin: <i>EĞER yeşil yönde araç Çok VE kırmızı yönde araç Az İSE uzatma Uzun</i>. Çıkarım üç adımda yapılır. Önce VE işlemi için min ile her kuralın ateşlenme derecesi bulunur. Sonra kuralların sonuçları max ile birleştirilir. Son olarak ağırlık merkezi yöntemiyle kesin değere dönüştürülür:</p>
   <div class="eq">\[ \alpha_{ij}=\min\big(\mu_{A_i}(q_G),\,\mu_{B_j}(q_R)\big),\qquad \mu(e)=\max_{i,j}\ \min\big(\alpha_{ij},\,\mu_{C_{k(i,j)}}(e)\big),\qquad e^{*}=\frac{\int e\,\mu(e)\,de}{\int \mu(e)\,de} \]</div>
   <p>Karar kuralı şöyledir. En kısa yeşil süresi \(G_{\min}=7\) s dolduktan sonra sistem değerlendirilir. \(e^{*}&lt;1{,}5\) s ise faz sonlandırılır. Değilse yeşil \(e^{*}\) kadar uzatılır ve süre bitiminde yeniden değerlendirilir. Kırmızı yönde araç yoksa yeşil sürer. En uzun yeşil süresi \(G_{\max}\) aşılamaz. Bu "uzat ya da sonlandır" yapısı, literatürdeki bulanık sinyal denetleyicilerinin ortak kalıbıdır.</p>
+  <table class="data" style="max-width:560px">
+    <tr><th>Yeşil ↓ · Kırmızı →</th><th>Az</th><th>Orta</th><th>Çok</th></tr>
+    <tr><td>Az</td><td>Sıfır</td><td>Sıfır</td><td>Sıfır</td></tr>
+    <tr><td>Orta</td><td>Orta</td><td>Kısa</td><td>Kısa</td></tr>
+    <tr><td>Çok</td><td>Uzun</td><td>Uzun</td><td>Orta</td></tr>
+  </table>
+  <p><b>Tasarım doğrulaması.</b> İlk tasarımda yeşil yön girdisi 90 m'lik yaklaşımdaki tüm araçları sayıyordu. Bu yüzden denetleyici uzaktaki seyrek araçlar için yeşili uzatıyor ve döngüleri gereksiz uzatıyordu. Dengeli talepte ortalama döngü 75 s'ydi, araç tetiklemeli kontrolde ise 33 s. Sonuçta dengeli senaryoda sabit süreli sinyalden farkı yoktu. Algılama mesafesi (25–90 m) ve altı farklı kural tablosu, tek kavşak ve ağ senaryolarında sistematik olarak karşılaştırıldı. Seçilen tasarım (30 m ve yukarıdaki tablo), daha sonra hiç kullanılmamış rastgele tohumlarla bağımsız olarak doğrulandı. Bu doğrulamada 9 senaryonun 9'unda sabit süreliden, 7'sinde Webster planından anlamlı olarak düşük gecikme verdi (Holm, α = 0,05). Bu algılama tanımı, sola dönüşü olmayan bir kavşakta "geçiş süresi içinde gelecek araçlar" kavramına karşılık gelir. Bu kavram, araç tetiklemeli kontroldeki geçiş süresi mantığıyla da uyumludur.</p>
 
   <h2 id="m3">3. Bulanık trafik sinyali kontrolü literatürü</h2>
   <p>Bulanık mantığın trafik sinyaline ilk uygulaması Pappis ve Mamdani'ye aittir. Çalışmada iki tek yönlü yolun kesiştiği tek bir kavşak modellenmiştir. Bulanık denetleyicinin sonuçları, etkin bir araç tetiklemeli denetleyiciyle karşılaştırılmıştır. Ortalama araç gecikmesi ölçütüne göre bulanık denetleyicinin daha iyi performans gösterdiği bildirilmiştir <a class="cite" data-ref="pappis1977" href="#method">(Pappis ve Mamdani, 1977)</a>.</p>
@@ -484,6 +492,7 @@
       <tr><td>11</td><td><b>Yorumlanabilirlik analizi</b></td><td>Öğrenilen kuralların uzman kurallarıyla ve Q politikasıyla karşılaştırılması. Örneğin "kırmızıda çok araç varken GA hangi koşulda yeşili uzatıyor?"</td><td>Nitel</td><td>Optimizasyon → öğrenilen kural tabanı ve politika haritası</td><td><span class="chip ok">Uygulamada</span></td></tr>
       <tr><td>12</td><td><b>Ani olaya tepki</b></td><td>Batı kolundaki 3 dakikalık talep patlaması sırasında kuyruk zaman serisinin incelenmesi.</td><td>Kuyruk–zaman, toparlanma süresi</td><td>Simülatör → "Ani talep artışı" senaryosu</td><td><span class="chip ok">Uygulamada</span></td></tr>
       <tr><td>13</td><td><b>Hesaplama maliyeti</b></td><td>Karar başına çıkarım süresi. Gerçek zamanlı uygulanabilirlik için gömülü donanımla kıyaslanabilir.</td><td>µs/karar</td><td>Bu sayfada ölçülür: <b id="inferCost">…</b></td><td><span class="chip ok">Uygulamada</span></td></tr>
+      <tr><td>25</td><td><b>Bulanık tasarım doğrulaması</b></td><td>Yeşil yön algılama mesafesi (25–90 m) ve altı kural tablosunun tek kavşak ve ağda karşılaştırılması. Seçilen tasarımın bağımsız tohumlarla doğrulanması.</td><td>Sabite, Webster'e ve tetiklemeliye karşı anlamlı fark sayısı</td><td>Yöntem bölüm 2'deki tasarım doğrulaması</td><td><span class="chip ok">Tamamlandı</span></td></tr>
       <tr><td>14</td><td><b>Parametre duyarlılığı</b></td><td>Maksimum yeşil, karar eşiği (1,5 s) ve en kısa yeşilin sonuçlara etkisi.</td><td>Gecikme</td><td>Maks. yeşil kaydırıcısıyla manuel. Sistematik tarama önerilir.</td><td><span class="chip todo">Önerilen</span></td></tr>
       <tr><td>15</td><td><b>Dış geçerlilik: SUMO doğrulaması</b></td><td>Aynı denetleyicilerin TraCI arayüzüyle SUMO'da çalıştırılması ve sonuçların karşılaştırılması.</td><td>Gecikme farkı</td><td>Python + SUMO/TraCI</td><td><span class="chip todo">Önerilen</span></td></tr>
       <tr><td>16</td><td><b>Gerçek veriyle kalibrasyon</b></td><td>Belediye trafik sayım verileriyle senaryo oranlarının ve profillerin belirlenmesi.</td><td>—</td><td>Senaryo kaydırıcılarına gerçek sayımlar girilerek</td><td><span class="chip todo">Önerilen</span></td></tr>
@@ -504,7 +513,7 @@
       <ul style="margin:0;padding-left:20px;font-size:14px">
         <li><b>İç geçerlilik:</b> Model basitleştirilmiştir (tek şerit, dönüş yok, homojen sürücü). Mutlak gecikme değerleri gerçeği birebir yansıtmaz, göreli karşılaştırmalar daha güvenilirdir.</li>
         <li><b>Ağ modeli:</b> Her yönde tek şerit vardır (sinyalli kavşakta 30 m'lik sola dönüş cebiyle). Dönel kavşak tek şeritlidir ve yüksek halka akımında temkinlidir. Yayalar ve ağır taşıtlar modellenmez. Yeşil dalga yalnızca doğu yönü için optimize edilmiştir.</li>
-        <li><b>Algılama varsayımı:</b> Bulanık ve Q-öğrenme denetleyicileri 90 m'lik yaklaşımdaki araç sayısını kusursuz bilir (kamera ya da çoklu dedektör varsayımı). Araç tetiklemeli yalnızca tek noktadaki dedektörü kullanır. Bu bilgi farkı sonuçlarda raporlanmalıdır.</li>
+        <li><b>Algılama varsayımı:</b> Bulanık ve Q-öğrenme denetleyicileri yaklaşımdaki araç sayısını kusursuz bilir: bulanık yeşil yönde 30 m ve kuyruk, kırmızı yönde 90 m. Bu bir kamera ya da çoklu dedektör varsayımıdır. Araç tetiklemeli yalnızca tek noktadaki dedektörü kullanır. Bu bilgi farkı sonuçlarda raporlanmalıdır.</li>
         <li><b>Aşırı uyum:</b> GA ve Q-öğrenme, eğitildikleri senaryo ve tohumlara uyum sağlayabilir. Bu nedenle test tohumları ayrıdır.</li>
         <li><b>Rakip yöntem ayarı:</b> Karşılaştırmanın adil olması için sabit süreli sinyal yerine Webster planı, araç tetiklemeli kontrol için de standart parametreler kullanılır.</li>
         <li><b>İstatistik:</b> Çok sayıda karşılaştırma yapıldığı için Holm düzeltmesi uygulanır. Etki büyüklüğü (Δ%) p-değeriyle birlikte yorumlanmalıdır.</li>
@@ -530,8 +539,8 @@
 
 <script defer src="vendor/katex/katex.min.js"></script>
 <script defer src="vendor/katex/contrib/auto-render.min.js"></script>
-<script src="js/engine.js"></script>
-<script src="js/net.js"></script>
-<script src="js/app.js"></script>
+<script src="js/engine.js?v=2026.11.17-5"></script>
+<script src="js/net.js?v=2026.11.17-5"></script>
+<script src="js/app.js?v=2026.11.17-5"></script>
 </body>
 </html>

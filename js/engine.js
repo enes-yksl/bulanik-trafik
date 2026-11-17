@@ -20,6 +20,7 @@ const K = {
   YELLOW: 3, ALLRED: 2,
   DET: 40,      // m, araç tetiklemeli kontrol dedektörünün dur çizgisine uzaklığı
   MING: 7,      // s, en kısa yeşil
+  GZONE: 30,    // m, bulanık denetleyicinin yeşil yön girdisi: kuyruk + dur çizgisine bu mesafeden yakın araçlar
   SAT: 0.48,    // araç/s/şerit, modelin ölçülen doygun akımı (≈1740 ta/sa, dt = 0,1 s)
   LOST: 5.5     // s, faz başına kayıp zaman (Webster; modelden kalibre: 1,4 s kalkış + 2 s tüm kırmızı + ≈2 s kullanılmayan sarı)
 };
@@ -73,7 +74,7 @@ function meanFactors(sc) {
 // ---------- Bulanık çıkarım (Mamdani) ----------
 const IN_MAX = 20, OUT_MAX = 15, NSAMP = 61;
 const SETS_IN = ['Az', 'Orta', 'Çok'], SETS_OUT = ['Sıfır', 'Kısa', 'Orta', 'Uzun'];
-const DEFAULT_P = { g: [0, 6, 12], r: [0, 6, 12], o: [0, 3, 7, 12], rules: [0, 0, 0, 2, 1, 0, 3, 2, 1] };
+const DEFAULT_P = { g: [0, 6, 12], r: [0, 6, 12], o: [0, 3, 7, 12], rules: [0, 0, 0, 2, 1, 1, 3, 3, 2] };
 const cloneP = p => ({ g: p.g.slice(), r: p.r.slice(), o: p.o.slice(), rules: p.rules.slice() });
 
 function ruspini(c, k, x) {
@@ -115,6 +116,8 @@ class Sim {
   sig(i) { if (PH[i] !== this.phase) return 'red'; return this.state === 'green' ? 'green' : this.state === 'yellow' ? 'yellow' : 'red'; }
   count(i) { const ln = this.lanes[i]; let n = ln.pending.length; const cs = ln.cars; for (let k = cs.length - 1; k >= 0; k--) { if (cs[k].s < K.L) n++; else break; } return n; }
   phaseCount(p) { let m = 0; for (let i = 0; i < 4; i++) if (PH[i] === p) { const c = this.count(i); if (c > m) m = c; } return m; }
+  // Yeşil fazdaki kollar için: kuyrukta bekleyen ya da dur çizgisine GZONE'dan yakın araç sayısı (en büyüğü)
+  greenCount() { let m = 0; for (let i = 0; i < 4; i++) if (PH[i] === this.phase) { let n = 0; for (const c of this.lanes[i].cars) if (c.s < K.L && (c.s > K.L - K.GZONE || c.v < 1.5)) n++; n += this.lanes[i].pending.length; if (n > m) m = n; } return m; }
   queued() { let n = 0; for (const ln of this.lanes) { n += ln.pending.length; for (const c of ln.cars) if (c.s < K.L && c.v < 1.5) n++; } return n; }
   step(dt) {
     const rates = this.demand(this.t), t = this.t;
@@ -217,7 +220,7 @@ function ctrlFuzzy(o) {
     init() { this.nextEval = minG; }, onGreen() { this.nextEval = minG; },
     update(s) {
       if (s.stateT < this.nextEval - 1e-9) return false;
-      const qG = s.phaseCount(s.phase), qR = s.phaseCount(1 - s.phase), t = s.t;
+      const qG = s.greenCount(), qR = s.phaseCount(1 - s.phase), t = s.t;
       if (qR === 0) { this.nextEval = s.stateT + 1; this.last = { t, qG, qR, act: 'Karşı yönde araç yok, yeşil devam ediyor' }; return false; }
       if (s.stateT >= this.maxG - 1e-9) { this.last = { t, qG, qR, act: 'Maksimum yeşil doldu, faz değişiyor' }; return true; }
       const r = infer(this.P, qG, qR);
@@ -410,7 +413,8 @@ function* taskQ(cfg) {
   return { Q: Array.from(Q), curve, table, scenarios };
 }
 
-const API = { K, PH, DIRS, ARM, PHASE_NAMES, PROFILES, SCENARIOS, CONTROLLERS, IN_MAX, OUT_MAX, NSAMP, SETS_IN, SETS_OUT, DEFAULT_P, QB_LABELS, TB_LABELS, QSTATES,
+const VERSION = '2026.11.17-5';
+const API = { VERSION, K, PH, DIRS, ARM, PHASE_NAMES, PROFILES, SCENARIOS, CONTROLLERS, IN_MAX, OUT_MAX, NSAMP, SETS_IN, SETS_OUT, DEFAULT_P, QB_LABELS, TB_LABELS, QSTATES,
   cloneP, ruspini, infer, Sim, makeDemand, webster, buildController, runOne, mulberry32, clamp, qIndex,
   mean, sd, ci95, tCrit, pairedT, holm, los, percentile, taskLab, taskSens, taskGA, taskQ };
 root.BT = API;

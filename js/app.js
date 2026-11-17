@@ -1,7 +1,15 @@
 /* Bulanık Trafik — arayüz */
 (() => {
 'use strict';
-const B = window.BT, K = B.K;
+const APP_VERSION = '2026.11.17-5';
+const B = window.BT || {}, K = B.K || {};
+function showError(msg) { const el = document.getElementById('errBanner'); if (el) { el.style.display = ''; el.innerHTML = msg; } }
+// Önbellekten eski dosya yüklendiyse bir kez temiz yeniden yükle
+if (!B || B.VERSION !== APP_VERSION || B.NET_VERSION !== APP_VERSION) {
+  let tried = false; try { tried = sessionStorage.getItem('bt.reload') === APP_VERSION; sessionStorage.setItem('bt.reload', APP_VERSION); } catch (e) {}
+  if (!tried) { location.reload(); return; }
+  showError('Sayfanın bazı dosyaları eski sürümden yüklendi. Lütfen sayfayı tam yenileyin (Ctrl+F5 ya da mobilde sekmeyi kapatıp yeniden açın).');
+}
 const $ = id => document.getElementById(id);
 const fmt = (v, d = 1) => Number.isFinite(v) ? v.toLocaleString('tr-TR', { minimumFractionDigits: d, maximumFractionDigits: d }) : '–';
 const mmss = t => { t = Math.floor(t); return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'); };
@@ -14,13 +22,14 @@ const losBadge = d => `<span class="los los-${B.los(d)}" title="HCM hizmet düze
 // ---------- Kalıcı durum ----------
 const S = { P_fuzzy: B.cloneP(B.DEFAULT_P), P_ga: null, gaInfo: null, Q: null, qInfo: null, fixedG: 30, maxG: 60 };
 try {
-  const g = JSON.parse(localStorage.getItem('bt.ga') || 'null'); if (g && g.P) { S.P_ga = g.P; S.gaInfo = g.info; }
-  const q = JSON.parse(localStorage.getItem('bt.q') || 'null'); if (q && q.Q) { S.Q = Float64Array.from(q.Q); S.qInfo = q.info; }
+  const okP = P => P && Array.isArray(P.g) && P.g.length === 3 && Array.isArray(P.r) && P.r.length === 3 && Array.isArray(P.o) && P.o.length === 4 && Array.isArray(P.rules) && P.rules.length === 9 && [...P.g, ...P.r, ...P.o, ...P.rules].every(Number.isFinite);
+  const g = JSON.parse(localStorage.getItem('bt.ga') || 'null'); if (g && okP(g.P) && g.v === APP_VERSION) { S.P_ga = g.P; S.gaInfo = g.info; } else if (g) localStorage.removeItem('bt.ga');
+  const q = JSON.parse(localStorage.getItem('bt.q') || 'null'); if (q && Array.isArray(q.Q) && q.Q.length === B.QSTATES * 2 && q.Q.every(Number.isFinite) && q.v === APP_VERSION) { S.Q = Float64Array.from(q.Q); S.qInfo = q.info; } else if (q) localStorage.removeItem('bt.q');
 } catch (e) {}
 function save() {
   try {
-    if (S.P_ga) localStorage.setItem('bt.ga', JSON.stringify({ P: S.P_ga, info: S.gaInfo })); else localStorage.removeItem('bt.ga');
-    if (S.Q) localStorage.setItem('bt.q', JSON.stringify({ Q: Array.from(S.Q), info: S.qInfo })); else localStorage.removeItem('bt.q');
+    if (S.P_ga) localStorage.setItem('bt.ga', JSON.stringify({ v: APP_VERSION, P: S.P_ga, info: S.gaInfo })); else localStorage.removeItem('bt.ga');
+    if (S.Q) localStorage.setItem('bt.q', JSON.stringify({ v: APP_VERSION, Q: Array.from(S.Q), info: S.qInfo })); else localStorage.removeItem('bt.q');
   } catch (e) {}
 }
 const ctx = () => ({ fixedG: S.fixedG, maxG: S.maxG, P_fuzzy: S.P_fuzzy, P_ga: S.P_ga, Q: S.Q });
@@ -240,7 +249,7 @@ class Runner {
         slice();
       };
       let got = false;
-      try { this.w = new Worker('js/worker.js'); } catch (e) { this.w = null; }
+      try { this.w = new Worker('js/worker.js?v=' + APP_VERSION); } catch (e) { this.w = null; }
       if (!this.w) return inline();
       this.w.onmessage = e => { got = true; const m = e.data;
         if (m.progress) onProg(m.progress);
@@ -259,7 +268,7 @@ class Runner {
 // SİMÜLATÖR
 // =====================================================================
 const DT = 0.1;
-const live = { sc: { id: 'dengeli', name: '', rates: SC.dengeli.rates.slice(), profile: 'sabit' }, left: 'fuzzy', right: 'fixed', simL: null, simR: null, hist: null, running: true, speed: 4, acc: 0, lastTs: 0, lastRec: 0, seed: 42 };
+const live = { sc: { id: 'dalga', name: '', rates: SC.dalga.rates.slice(), profile: 'dalga' }, left: 'fuzzy', right: 'fixed', simL: null, simR: null, hist: null, running: true, speed: 4, acc: 0, lastTs: 0, lastRec: 0, seed: 42 };
 
 function fillCtlSelect(sel, val) {
   sel.innerHTML = B.CONTROLLERS.map(c => `<option value="${c.id}"${trained(c.id) ? '' : ' disabled'}>${c.name}${trained(c.id) ? '' : ' (önce eğitin)'}</option>`).join('');
@@ -360,7 +369,7 @@ function renderSim() {
     $('verdict').innerHTML = `Bu akışta <b style="color:${C.ct[bt]}">${CT[bt].name}</b>, ${CT[wt].name} denetleyicisine göre araç başına ortalama gecikmeyi <b>%${fmt(pct, 0)}</b> daha düşük tutuyor (${fmt(Math.min(dl, dr))} s / ${fmt(Math.max(dl, dr))} s). Tek bir koşu istatistiksel kanıt değildir. Anlamlılık için Deney Laboratuvarı'nı kullanın.`;
   }
   // bulanık panel
-  const F = fuzzyTarget(), sim = F.sim, qG = sim.phaseCount(sim.phase), qR = sim.phaseCount(1 - sim.phase), r = B.infer(F.P, qG, qR, true);
+  const F = fuzzyTarget(), sim = F.sim, qG = sim.greenCount(), qR = sim.phaseCount(1 - sim.phase), r = B.infer(F.P, qG, qR, true);
   $('fzSrc').textContent = F.side ? `${F.side} kavşaktaki ${CT[F.type].name} denetleyicisi izleniyor` : 'İki kavşakta da bulanık denetleyici yok; girdiler sol kavşaktan alınıyor';
   $('vG').textContent = `= ${qG} (${B.PHASE_NAMES[sim.phase]})`; $('vR').textContent = `= ${qR} (${B.PHASE_NAMES[1 - sim.phase]})`; $('vO').textContent = `= ${fmt(r.out)} s`;
   drawMF($('mfG'), F.P.g, B.SETS_IN, B.IN_MAX, Math.min(qG, B.IN_MAX), r.muG);
@@ -371,14 +380,13 @@ function renderSim() {
   const h = live.hist, t1 = Math.max(600, h.t[h.t.length - 1] || 0), t0 = t1 - 600, ticks = []; for (let v = Math.ceil(t0 / 120) * 120; v <= t1; v += 120) ticks.push(v);
   drawLines($('cvQ'), [{ xs: h.t, ys: h.r, color: C.ct[live.right] }, { xs: h.t, ys: h.l, color: C.ct[live.left] }], { xMin: t0, xMax: t1, xTicks: ticks, xFmt: mmss, yMax: 5 });
 }
-function frame(ts) {
+function frame0(ts) {
   const rdt = live.lastTs ? Math.min(0.1, (ts - live.lastTs) / 1000) : 0; live.lastTs = ts;
-  if (view === 'simulator') {
+  if (view === 'simulator' && live.simL) {
     if (live.running) { live.acc += rdt * live.speed; let n = 0;
       while (live.acc >= DT && n < 600) { live.simL.step(DT); live.simR.step(DT); live.acc -= DT; n++; if (live.simL.t - live.lastRec >= 2 - 1e-9) recordLive(); } }
     renderSim();
-  } else if (view === 'network') netFrame(rdt, ts);
-  requestAnimationFrame(frame);
+  } else if (view === 'network' && nlive.netA) netFrame(rdt, ts);
 }
 
 // =====================================================================
@@ -861,9 +869,16 @@ function renderNetFindings() {
 }
 
 // ---------- Başlat ----------
-initSimUI(); initLabUI(); initOptUI(); initNetUI();
-liveReset(false); netReset(false);
+const safe = (name, fn) => { try { fn(); return true; } catch (e) { console.error(name, e); showError(`"${name}" bölümü başlatılamadı: ${e.message}. Sayfayı tam yenilemeyi deneyin (Ctrl+F5). Diğer bölümler çalışmaya devam eder.`); return false; } };
+const okSim = safe('Simülatör', () => { initSimUI(); $('scSel').value = live.sc.id; $('profSel').value = live.sc.profile; live.syncSliders(); liveReset(false); });
+safe('Deney Laboratuvarı', initLabUI);
+safe('Optimizasyon', initOptUI);
+const okNet = safe('Ağ Simülasyonu', () => { initNetUI(); netReset(false); });
 route();
-setTimeout(measureInfer, 300);
-requestAnimationFrame(frame);
+setTimeout(() => safe('Analizler', measureInfer), 300);
+function loop(ts) {
+  try { frame0(ts); } catch (e) { console.error(e); showError('Simülasyon çalışırken bir hata oluştu: ' + e.message + '. Sayfayı yenileyin.'); return; }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
 })();

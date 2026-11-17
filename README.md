@@ -30,20 +30,28 @@
 
 ## Örnek sonuç
 
+### Tek kavşak
+
 9 senaryo × 6 denetleyici × 10 tekrar, 30 dk simülasyon, 5 dk ısınma. Değerler araç başına ortalama gecikmedir (s). GA karma senaryoda eğitilmiştir.
 
 | Senaryo | Sabit | Webster | Tetiklemeli | Bulanık | Bulanık+GA | Q-öğrenme |
 |---|---|---|---|---|---|---|
-| Dengeli | 18,2 | 16,3 | 13,5 | 19,2 | **12,8** | 19,4 |
-| Ana yol – tali yol | 186,4 | 19,1 | 14,3 | 16,8 | **13,7** | 18,7 |
-| Kayan talep | 33,8 | 34,6 | 13,3 | 17,1 | **13,1** | 17,7 |
-| Ani artış | 32,7 | 28,7 | 17,2 | 22,0 | **16,6** | 25,4 |
+| Dengeli | 18,2 | 16,3 | 13,5 | 14,4 | **13,1** | 15,5 |
+| Gece | 13,7 | 8,3 | **5,0** | 5,5 | 5,2 | 9,1 |
+| Ana yol – tali yol | 186,4 | 19,1 | 14,3 | 15,0 | **14,1** | 18,0 |
+| Asimetrik | 150,9 | 51,1 | **42,4** | 47,0 | 48,4 | 54,2 |
+| Doygunluğa yakın | 62,5 | 38,6 | **32,9** | 33,5 | 37,0 | 33,6 |
+| Aşırı doygun | 226,3 | **122,6** | 127,5 | 127,1 | 126,6 | 134,7 |
+| Kayan talep | 33,8 | 34,6 | 13,3 | 14,2 | **13,1** | 15,9 |
+| Zirve profili | 33,5 | 31,7 | **18,6** | 20,0 | 20,0 | 21,0 |
+| Ani artış | 32,7 | 28,7 | 17,2 | 17,8 | **16,9** | 20,8 |
 
-GA ile ayarlanmış bulanık denetleyici, Holm düzeltmeli eşleştirilmiş t-testine göre şu sonuçları verdi:
-- Sabit süreliye göre 9/9 senaryoda anlamlı olarak daha düşük gecikme.
-- Webster'e göre 7/9 senaryoda anlamlı olarak daha düşük gecikme.
-- Elle tasarlanmış bulanık sisteme göre 7/9 senaryoda anlamlı olarak daha düşük gecikme.
-- Araç tetiklemeli kontrole göre 8/9 senaryoda anlamlı fark yok (denk performans), 1 senaryoda anlamlı olarak daha iyi.
+Holm düzeltmeli eşleştirilmiş t-testine göre bulanık denetleyici:
+- Sabit süreliden 9/9 senaryoda anlamlı olarak iyi.
+- Webster'den 7/9 senaryoda anlamlı olarak iyi, kalan 2 senaryoda fark anlamlı değil.
+- Araç tetiklemeli kontrole göre 6 senaryoda anlamlı fark yok, 3 senaryoda geride.
+
+Bu sonuç, eğitimde ve tasarımda hiç kullanılmamış tohumlarla yapılan bağımsız doğrulamada da tekrarlandı.
 
 ### Ağ ölçeği
 
@@ -51,10 +59,12 @@ GA ile ayarlanmış bulanık denetleyici, Holm düzeltmeli eşleştirilmiş t-te
 
 | Ağ | Sabit | Webster | Yeşil dalga | Tetiklemeli | Bulanık | Bulanık+GA | Q-öğrenme | Dönel kavşak |
 |---|---|---|---|---|---|---|---|---|
-| Koridor 1×3 | 140,7 | 39,7 | 44,4 | 27,6 | 38,8 | 32,8 | 36,9 | 28,4 |
-| Izgara 2×2 | 60,1 | 65,5 | 48,9 | 32,9 | 49,0 | 36,8 | 41,4 | **26,3** |
-| Izgara 2×3 | 114,0 | 68,3 | 69,7 | 43,8 | 61,5 | 54,3 | 50,5 | **36,1** |
-| Izgara 3×3 | 73,4 | 57,0 | 63,9 | 43,1 | 63,8 | 46,1 | 54,5 | **33,2** |
+| Koridor 1×3 | 140,7 | 39,7 | 44,4 | 27,6 | 40,3 | 37,5 | 36,9 | 28,4 |
+| Izgara 2×2 | 60,1 | 65,5 | 48,9 | 32,9 | 45,3 | 41,6 | 41,4 | **26,3** |
+| Izgara 2×3 | 114,0 | 68,3 | 69,7 | 43,8 | 68,3 | 53,3 | 50,5 | **36,1** |
+| Izgara 3×3 | 73,4 | 57,0 | 63,9 | 43,1 | 59,7 | 54,5 | 54,5 | **33,2** |
+
+Ağlarda bulanık denetleyici, 10 tekrar ve 30 dk ile dört ağın dördünde de sabit süreliden anlamlı olarak iyi (p < 0,01). 5 tekrarda sabit sinyalin yüksek varyansı nedeniyle iki ızgarada fark anlamlılık sınırında kalır. Bu yüzden ağ deneyinin varsayılanı 10 tekrar ve 30 dk'dır.
 
 Bu sonuçlardan çıkan gözlemler:
 - **Sinyalli kavşaklar:** En iyisi araç tetiklemeli kontrol oldu. GA ile ayarlanmış bulanık denetleyici tek kavşakta eğitildiği için, sola dönüş etkileşimlerinin olduğu ağda onun gerisinde kaldı.

@@ -75,6 +75,8 @@ class Node {
   count(i) { const lk = this.inLinks[i]; let n = lk.entry ? lk.pending.length : 0; const cs = lk.cars;
     for (let k = cs.length - 1; k >= 0; k--) { const s = cs[k].s; if (s >= lk.L) break; if (s > lk.L - ZONE) n++; } return n; }
   phaseCount(p) { let m = 0; for (let i = 0; i < 4; i++) if (PH[i] === p) { const c = this.count(i); if (c > m) m = c; } return m; }
+  greenCount() { let m = 0; for (let i = 0; i < 4; i++) if (PH[i] === this.phase) { const lk = this.inLinks[i]; let n = lk.entry ? lk.pending.length : 0;
+    for (const c of lk.cars) if (c.s < lk.L && (c.s > lk.L - K.GZONE || (c.v < 1.5 && c.s > lk.L - ZONE))) n++; if (n > m) m = n; } return m; }
   queued() { let n = 0; for (let i = 0; i < 4; i++) { const lk = this.inLinks[i]; if (lk.entry) n += lk.pending.length; for (const c of lk.cars) if (c.s < lk.L && c.s > lk.L - ZONE && c.v < 1.5) n++; } return n; }
   sig(i) { if (this.kind === 'round') return 'none'; if (PH[i] !== this.phase) return 'red'; return this.state === 'green' ? 'green' : this.state === 'yellow' ? 'yellow' : 'red'; }
 }
@@ -354,5 +356,5 @@ function* taskNetLab(cfg) {
   return res;
 }
 
-Object.assign(B, { NETWORKS, NET_CONTROLLERS, HEAD, BOXW, RB, ARM_IN, ARM_OUT, Net, netGeometry: geometry, netPlan, demandFor, runNet, taskNetLab });
+Object.assign(B, { NET_VERSION: '2026.11.17-5', NETWORKS, NET_CONTROLLERS, HEAD, BOXW, RB, ARM_IN, ARM_OUT, Net, netGeometry: geometry, netPlan, demandFor, runNet, taskNetLab });
 })(typeof self !== 'undefined' ? self : this);
