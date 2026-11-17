@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bulanık Mantıkla Trafik Işığı Kontrolü — Simülatör</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f4ef; --panel:#ffffff; --ink:#1b1c1e; --muted:#6a6d72; --line:#e2e0d8; --soft:#f0eee8;
+  --fuzzy:#0d7a84; --fixed:#c25e1c; --red:#d43a3a; --amber:#e3a21a; --go:#1f9d55;
+  --road:#3b3e44; --grass:#dfe5d4; --mark:#f4f4f4;
+  --s1:#a9cdd2; --s2:#5fa9b1; --s3:#1d7f89; --s4:#0b4d54;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#131417; --panel:#1b1d21; --ink:#ebebea; --muted:#9a9ea4; --line:#2b2e34; --soft:#22252a;
+    --fuzzy:#3cb6c0; --fixed:#ec8a46; --red:#ef5a5a; --amber:#f0b43a; --go:#3ccf7c;
+    --road:#33363c; --grass:#1d261f; --mark:#cdcdcd;
+    --s1:#2c5a60; --s2:#3c8a93; --s3:#5fc0c9; --s4:#a6e3e8;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 20px 60px}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--fuzzy)}
+h1{font-size:28px;line-height:1.2;margin:6px 0 8px;font-weight:600;letter-spacing:-.01em}
+h2{font-size:16px;margin:0;font-weight:600}
+.lead{color:var(--muted);max-width:780px;margin:0 0 22px}
+.card,.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+.panel{margin-bottom:16px}
+.row{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}
+button,select{font:inherit;font-size:14px;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button.primary{background:var(--fuzzy);border-color:var(--fuzzy);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+label.inline{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:14px}
+label.check{display:flex;gap:8px;align-items:center;font-size:14px}
+.clock{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--muted)}
+.clock b{color:var(--ink);font-weight:500}
+.sliders{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 24px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.sl{display:grid;grid-template-columns:118px 1fr 64px;align-items:center;gap:10px;font-size:14px}
+.sl span{color:var(--muted)}
+.sl output{font-family:"IBM Plex Mono",monospace;font-size:13px;text-align:right}
+input[type=range]{width:100%;accent-color:var(--fuzzy)}
+.sims{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.card-head .sub{color:var(--muted);font-size:13px;margin-left:auto}
+.dot{width:10px;height:10px;border-radius:50%}
+.fuzzy .dot{background:var(--fuzzy)} .fixed .dot{background:var(--fixed)}
+.phase{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.lamp{width:9px;height:9px;border-radius:50%;display:inline-block}
+canvas{display:block;width:100%}
+.simcv{border-radius:8px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.tile{background:var(--soft);border-radius:8px;padding:8px 10px}
+.tile .k{font-size:12px;color:var(--muted)}
+.tile .v{font-family:"IBM Plex Mono",monospace;font-size:19px;font-weight:500}
+.tile .v small{font-size:12px;color:var(--muted);font-weight:400}
+.decision{margin-top:10px;font-size:13px;color:var(--muted);min-height:20px}
+.decision b{color:var(--ink);font-weight:500}
+.verdict{margin:16px 0;padding:12px 16px;border-radius:10px;background:var(--panel);border:1px solid var(--line);font-size:15px}
+.verdict b{font-weight:600}
+section.card{margin-top:16px}
+.fz-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px 22px}
+.fz-title{font-size:13px;color:var(--muted);margin-bottom:4px}
+.fz-title b{color:var(--ink);font-weight:500}
+table.rules{width:100%;border-collapse:separate;border-spacing:5px}
+table.rules th{font-size:12.5px;color:var(--muted);font-weight:500;text-align:center;padding:2px}
+table.rules th.rh{text-align:right;padding-right:6px}
+table.rules td button{width:100%;padding:8px 4px;border-radius:8px;display:flex;flex-direction:column;align-items:center;gap:1px;background:transparent}
+table.rules .lab{font-weight:600;font-size:14px}
+table.rules .w{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--muted)}
+.hint{font-size:12.5px;color:var(--muted);margin-top:6px}
+.legend{display:flex;gap:16px;font-size:13px;color:var(--muted)}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:6px}
+.progress{flex:1;min-width:140px;height:6px;background:var(--soft);border-radius:4px;overflow:hidden}
+.progress div{height:100%;width:0;background:var(--fuzzy);transition:width .15s}
+#gaStatus{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--muted);min-width:220px}
+.ga-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:22px;margin-top:14px}
+.res-row{display:grid;grid-template-columns:1fr 70px;gap:8px;align-items:center;margin:8px 0}
+.res-row .nm{font-size:13.5px}
+.res-row .bar{height:8px;border-radius:4px;margin-top:4px}
+.res-row .val{font-family:"IBM Plex Mono",monospace;font-size:13.5px;text-align:right}
+.muted{color:var(--muted)}
+p.muted{margin:0 0 12px;font-size:14px}
+details summary{cursor:pointer;font-weight:600}
+details ul{margin:10px 0 0;padding-left:20px;color:var(--muted);font-size:14px}
+details li{margin:4px 0}
+details li b{color:var(--ink);font-weight:500}
+@media (max-width:900px){.sliders{grid-template-columns:1fr 1fr}}
+@media (max-width:760px){.sims,.fz-grid,.ga-grid{grid-template-columns:1fr}.sliders{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}h1{font-size:23px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Bulanık çıkarım · Mamdani · Genetik optimizasyon</div>
+  <h1>Bulanık mantıkla trafik ışığı kontrolü</h1>
+  <p class="lead">Aynı araç akışı iki özdeş kavşağa gönderilir. Soldaki kavşakta bulanık çıkarım sistemi kuyruklara bakarak yeşil süreyi uzatır ya da fazı değiştirir. Sağdaki kavşak sabit süreli çalışır. Kural tablosundaki hücrelere tıklayarak kuralları değiştirebilir, genetik algoritmayla üyelik fonksiyonlarını ve kural tabanını otomatik optimize edebilirsiniz.</p>
+
+  <div class="panel">
+    <div class="row">
+      <button id="play" class="primary">Duraklat</button>
+      <button id="reset">Sıfırla</button>
+      <label class="inline">Hız
+        <select id="speed"><option value="1">1×</option><option value="2">2×</option><option value="4" selected>4×</option><option value="8">8×</option><option value="16">16×</option></select>
+      </label>
+      <label class="inline">Senaryo
+        <select id="preset">
+          <option value="dengeli">Dengeli akış</option>
+          <option value="ana">Ana yol yoğun (K–G)</option>
+          <option value="zirve">Zirve saati</option>
+          <option value="asim">Asimetrik akış</option>
+          <option value="ozel" hidden>Özel</option>
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" id="dyn"> Dalgalı talep (yoğunluk yönler arasında kayar)</label>
+      <div class="clock">Simülasyon zamanı <b id="clock">00:00</b></div>
+    </div>
+    <div class="sliders" id="sliders"></div>
+  </div>
+
+  <div class="sims">
+    <article class="card fuzzy">
+      <div class="card-head"><span class="dot"></span><h2>Bulanık kontrol</h2><span class="phase" id="phF"></span></div>
+      <canvas id="cvF" class="simcv" data-h="sq"></canvas>
+      <div class="stats" id="stF"></div>
+      <div class="decision" id="decF"></div>
+    </article>
+    <article class="card fixed">
+      <div class="card-head"><span class="dot"></span><h2>Sabit süreli kontrol</h2><span class="phase" id="phX"></span></div>
+      <canvas id="cvX" class="simcv" data-h="sq"></canvas>
+      <div class="stats" id="stX"></div>
+      <div class="decision" id="decX"></div>
+    </article>
+  </div>
+
+  <div class="verdict" id="verdict">Simülasyon ısınıyor…</div>
+
+  <section class="card">
+    <div class="card-head"><h2>Canlı bulanık çıkarım</h2><span class="sub">Bulanık kavşağın anlık durumu · Mamdani (min–max, ağırlık merkezi)</span></div>
+    <div class="fz-grid">
+      <div><div class="fz-title">Girdi 1 · <b>Yeşil yöndeki araç sayısı</b> <span id="vG"></span></div><canvas id="mfG" data-h="150"></canvas></div>
+      <div><div class="fz-title">Girdi 2 · <b>Kırmızı yöndeki araç sayısı</b> <span id="vR"></span></div><canvas id="mfR" data-h="150"></canvas></div>
+      <div><div class="fz-title">Çıktı · <b>Yeşil uzatma süresi (s)</b> <span id="vO"></span></div><canvas id="mfO" data-h="150"></canvas></div>
+      <div>
+        <div class="fz-title"><b>Kural tabanı</b> · hücre rengi = kuralın ateşlenme derecesi</div>
+        <table class="rules" id="rules"></table>
+        <div class="hint">Bir hücreye tıklayınca sonucu değişir (Sıfır → Kısa → Orta → Uzun). <button id="rulesReset" style="padding:3px 9px;font-size:12.5px;margin-left:4px">Varsayılana dön</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Kuyruktaki toplam araç</h2>
+      <div class="legend" style="margin-left:auto"><span><i style="background:var(--fuzzy)"></i>Bulanık</span><span><i style="background:var(--fixed)"></i>Sabit süreli</span></div>
+    </div>
+    <canvas id="cvQ" data-h="190"></canvas>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Genetik algoritma ile optimizasyon</h2></div>
+    <p class="muted">GA, iki girdinin 3'er ve çıktının 4 üyelik fonksiyonu merkezini ve 9 kuralın sonucunu birlikte arar. Her birey, seçili senaryoda 720 s'lik iki farklı rastgele araç akışıyla ekransız simüle edilir. Uygunluk değeri araç başına ortalama gecikmedir (düşük olan iyidir). Adil bir karşılaştırma için sabit süreli sinyalin en iyi yeşil süresi de 10–60 s aralığında taranır.</p>
+    <div class="row">
+      <label class="inline">Popülasyon <select id="gaPop"><option>12</option><option selected>20</option><option>30</option></select></label>
+      <label class="inline">Nesil <select id="gaGen"><option>8</option><option selected>15</option><option>25</option></select></label>
+      <button id="gaRun" class="primary">Optimizasyonu başlat</button>
+      <div class="progress"><div id="gaBar"></div></div>
+      <span id="gaStatus">Hazır</span>
+    </div>
+    <div class="ga-grid">
+      <div>
+        <div class="fz-title"><b>Yakınsama</b> · nesil başına en iyi ve ortalama gecikme</div>
+        <canvas id="cvGA" data-h="210"></canvas>
+        <div class="legend" style="margin-top:6px"><span><i style="background:var(--fuzzy)"></i>En iyi birey</span><span><i style="background:var(--muted)"></i>Popülasyon ort.</span><span><i style="background:var(--fixed)"></i>En iyi sabit süre</span></div>
+      </div>
+      <div id="gaResults"><div class="fz-title"><b>Sonuçlar</b></div><p class="muted">Optimizasyonu başlattığınızda dört kontrolcü burada aynı koşullarda karşılaştırılır.</p></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <details>
+      <summary>Model ve yöntem</summary>
+      <ul>
+        <li><b>Girdiler:</b> Her fazın iki kolundan araç sayısı büyük olanı alınır. Sayıma dur çizgisine kadar olan 90 m'deki araçlar ve kavşağa giremeyip sırada bekleyenler girer.</li>
+        <li><b>Çıkarım:</b> Mamdani tipi. VE işlemi için min, kural birleştirme için max, durulaştırma için ağırlık merkezi kullanılır. Üyelik fonksiyonları üçgen/omuz biçiminde, komşu kümelerin toplamı 1 olacak şekilde (Ruspini bölüntüsü) tanımlıdır.</li>
+        <li><b>Karar mantığı:</b> En az 7 s yeşilden sonra sistem değerlendirilir. Çıktı 1,5 s'nin altındaysa faz değişir, değilse yeşil çıktı kadar uzatılıp tekrar değerlendirilir. Kırmızı yönde araç yoksa yeşil devam eder. Maksimum yeşil süresi aşılamaz.</li>
+        <li><b>Araç modeli:</b> Hız sınırı 50 km/sa, ivmelenme 2 m/s², sürücü tepki süresi 1 s, araçlar arası durma mesafesi 7 m. Araçlar düz gider. Sarı ışık 3 s, ardından 2 s tüm yönler kırmızıdır. Varışlar Poisson sürecidir ve iki kavşakta aynı rastgele tohumla üretilir.</li>
+        <li><b>Genetik algoritma:</b> Gerçel kodlu merkezler ve tamsayı kodlu kural sonuçları kullanılır. Seçim turnuvayla (k = 3) yapılır. Çaprazlama merkezlerde karışım, kurallarda tek biçimli yapılır. Mutasyon Gauss gürültüsü ve ±1 kural kaydırmasıdır. Her nesilde en iyi 2 birey korunur.</li>
+        <li><b>Projeyi genişletmek için:</b> GA yerine bir pekiştirmeli öğrenme ajanı (Q-öğrenme, DQN) üyelik parametrelerini çevrimiçi ayarlayabilir. Sola dönüş fazları, yaya butonu ve ardışık kavşaklar (yeşil dalga) eklenebilir. Sonuçlar SUMO simülatöründe doğrulanabilir.</li>
+      </ul>
+    </details>
+  </section>
+</div>
+
+<script>
+(()=>{
+'use strict';
+// ---------- Sabitler ----------
+const VMAX=13.9, ACC=2.0, DEC=3.5, BMAX=5.0, JAM=7.0, REACT=1.0, CARLEN=4.5, CARW=2.3;
+const L=90, BOX=12, LANEW=5, EXIT=2*(L+BOX)+6;
+const YELLOW=3, ALLRED=2, DT_VIS=0.05;
+const PH=[0,0,1,1];                       // K, G, B, D
+const DIRS=[[0,1],[0,-1],[1,0],[-1,0]];
+const ARM=['Kuzey','Güney','Batı','Doğu'];
+const PHASE_NAMES=['K–G','B–D'];
+const IN_MAX=20, OUT_MAX=15, NSAMP=76;
+const SETS_IN=['Az','Orta','Çok'], SETS_OUT=['Sıfır','Kısa','Orta','Uzun'];
+const DEFAULT_P={g:[0,6,12], r:[0,6,12], o:[0,3,7,12], rules:[0,0,0, 2,1,0, 3,2,1]};
+const PRESETS={dengeli:[8,8,8,8], ana:[15,15,5,5], zirve:[12,12,12,12], asim:[17,6,10,4]};
+const clone=p=>({g:p.g.slice(),r:p.r.slice(),o:p.o.slice(),rules:p.rules.slice()});
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const fmt=(v,d=1)=>v.toLocaleString('tr-TR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const mmss=t=>{t=Math.floor(t);return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');};
+
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+// ---------- Bulanık çıkarım ----------
+function ruspini(c,k,x){
+  const n=c.length;
+  if(k===0){ if(x<=c[0])return 1; if(x>=c[1])return 0; return (c[1]-x)/(c[1]-c[0]); }
+  if(k===n-1){ if(x>=c[n-1])return 1; if(x<=c[n-2])return 0; return (x-c[n-2])/(c[n-1]-c[n-2]); }
+  if(x<=c[k-1]||x>=c[k+1])return 0;
+  return x<=c[k]?(x-c[k-1])/(c[k]-c[k-1]):(c[k+1]-x)/(c[k+1]-c[k]);
+}
+function infer(P,qG,qR,full){
+  const muG=[0,1,2].map(k=>ruspini(P.g,k,qG)), muR=[0,1,2].map(k=>ruspini(P.r,k,qR));
+  const fire=new Array(9), agg=new Float64Array(NSAMP);
+  for(let a=0;a<3;a++)for(let b=0;b<3;b++){
+    const w=Math.min(muG[a],muR[b]); fire[a*3+b]=w;
+    if(w>0){ const o=P.rules[a*3+b];
+      for(let j=0;j<NSAMP;j++){ const x=j*OUT_MAX/(NSAMP-1); const m=Math.min(w,ruspini(P.o,o,x)); if(m>agg[j])agg[j]=m; } }
+  }
+  let num=0,den=0; for(let j=0;j<NSAMP;j++){ const x=j*OUT_MAX/(NSAMP-1); num+=x*agg[j]; den+=agg[j]; }
+  const out=den>0?num/den:0;
+  return full?{out,muG,muR,fire,agg}:{out};
+}
+
+// ---------- Kontrolcüler ----------
+function FixedCtrl(getG){ return {kind:'fixed', last:null, init(){}, onGreen(){}, update(sim){ return sim.stateT>=getG()-1e-9; }}; }
+function FuzzyCtrl(getP,getMaxG){
+  return {kind:'fuzzy', minG:7, thr:1.5, nextEval:7, last:null,
+    init(){this.nextEval=this.minG;}, onGreen(){this.nextEval=this.minG;},
+    update(sim){
+      if(sim.stateT<this.nextEval-1e-9) return false;
+      const qG=sim.phaseCount(sim.phase), qR=sim.phaseCount(1-sim.phase), t=sim.t;
+      if(qR===0){ this.nextEval=sim.stateT+1; this.last={t,qG,qR,act:'Karşı yönde araç yok, yeşil devam ediyor'}; return false; }
+      const mg=getMaxG();
+      if(sim.stateT>=mg-1e-9){ this.last={t,qG,qR,act:'Maksimum yeşil doldu, faz değişiyor'}; return true; }
+      const r=infer(getP(),qG,qR);
+      if(r.out<this.thr){ this.last={t,qG,qR,out:r.out,act:`Çıktı ${fmt(r.out)} s < 1,5 s, faz değişiyor`}; return true; }
+      const ext=Math.min(r.out,mg-sim.stateT); this.nextEval=sim.stateT+ext;
+      this.last={t,qG,qR,out:r.out,act:`Yeşil +${fmt(ext)} s uzatıldı`}; return false;
+    }};
+}
+
+// ---------- Trafik simülasyonu ----------
+class Sim{
+  constructor(seed,demand,ctrl){
+    this.t=0; this.demand=demand; this.ctrl=ctrl;
+    this.lanes=[]; for(let i=0;i<4;i++) this.lanes.push({cars:[],pending:[],rng:mulberry32(((seed*2654435761)>>>0)+i*97531)});
+    this.phase=0; this.state='green'; this.stateT=0; this.epoch=[0,0,0,0];
+    this.crossed=0; this.delayDone=0; this.generated=0; this.switches=0;
+    ctrl.init(this);
+  }
+  green(i){return this.state==='green'&&PH[i]===this.phase;}
+  sig(i){ if(PH[i]!==this.phase) return 'red'; return this.state==='green'?'green':this.state==='yellow'?'yellow':'red'; }
+  count(i){ const ln=this.lanes[i]; let n=ln.pending.length; const cs=ln.cars; for(let k=cs.length-1;k>=0;k--){ if(cs[k].s<L) n++; else break; } return n; }
+  phaseCount(p){ let m=0; for(let i=0;i<4;i++) if(PH[i]===p){ const c=this.count(i); if(c>m)m=c; } return m; }
+  queued(){ let n=0; for(const ln of this.lanes){ n+=ln.pending.length; for(const c of ln.cars) if(c.s<L&&c.v<1.5) n++; } return n; }
+  avgDelay(){ let tot=this.delayDone; for(const ln of this.lanes){ for(const c of ln.cars) tot+=c.wait; for(const t0 of ln.pending) tot+=this.t-t0; } return this.generated?tot/this.generated:0; }
+  step(dt){
+    const rates=this.demand(this.t);
+    for(let i=0;i<4;i++){
+      const ln=this.lanes[i], cars=ln.cars;
+      if(ln.rng()<rates[i]*dt){ ln.pending.push(this.t); this.generated++; }
+      if(ln.pending.length){ const last=cars[cars.length-1];
+        if(!last||last.s>=JAM+0.3){ const t0=ln.pending.shift(); const gap=last?last.s-JAM:1e9;
+          const v=Math.min(VMAX,Math.sqrt(2*DEC*Math.max(0,gap)));
+          cars.push({s:0,v,wait:this.t-t0,react:0,stopped:v<0.1,done:false,ep:-1,go:false}); } }
+      const green=this.green(i);
+      for(let k=0;k<cars.length;k++){
+        const c=cars[k];
+        let lim=k>0?cars[k-1].s-JAM:1e9;
+        if(!green&&c.s<L){ if(c.ep!==this.epoch[i]){ c.ep=this.epoch[i]; c.go=(L-c.s)<c.v*c.v/(2*BMAX); } if(!c.go) lim=Math.min(lim,L-0.05); }
+        const gap=lim-c.s; let v;
+        if(gap<=0.3){ v=0; c.react=0; }
+        else if(c.stopped){ c.react+=dt; if(c.react>=REACT-1e-9){ c.stopped=false; c.react=0; v=Math.min(ACC*dt,Math.sqrt(2*DEC*gap)); } else v=0; }
+        else v=Math.min(c.v+ACC*dt,VMAX,Math.sqrt(2*DEC*gap));
+        if(v<0.05){ v=0; if(!c.stopped){c.stopped=true;c.react=0;} }
+        if(c.s<L&&v<1.5) c.wait+=dt;
+        c.s+=Math.min(v*dt,Math.max(0,gap)); c.v=v;
+        if(!c.done&&c.s>=L){ c.done=true; this.crossed++; }
+      }
+      while(cars.length&&cars[0].s>EXIT){ const c=cars.shift(); this.delayDone+=c.wait; }
+    }
+    this.stateT+=dt;
+    if(this.state==='green'){ if(this.ctrl.update(this)){ this.state='yellow'; this.stateT=0; this.switches++; for(let i=0;i<4;i++) if(PH[i]===this.phase) this.epoch[i]++; } }
+    else if(this.state==='yellow'){ if(this.stateT>=YELLOW-1e-9){ this.state='allred'; this.stateT=0; } }
+    else if(this.stateT>=ALLRED-1e-9){ this.state='green'; this.stateT=0; this.phase=1-this.phase; this.ctrl.onGreen(this); }
+    this.t+=dt;
+  }
+}
+function makeDemand(cfg){
+  const out=[0,0,0,0];
+  return t=>{ for(let i=0;i<4;i++){ let r=cfg.rates[i]/60; if(cfg.dyn){ r*=1+0.75*Math.sin(2*Math.PI*t/360+(PH[i]?Math.PI:0)); } out[i]=Math.max(0,r); } return out; };
+}
+
+// ---------- Durum ----------
+const cfg={rates:PRESETS.dengeli.slice(),dyn:false};
+let P=clone(DEFAULT_P), fixedG=30, maxG=60;
+let simF,simX,hist,lastRec,seed=42;
+function reset(newSeed){
+  if(newSeed) seed=(Math.random()*1e9)|0;
+  const d=makeDemand(cfg);
+  simF=new Sim(seed,d,FuzzyCtrl(()=>P,()=>maxG));
+  simX=new Sim(seed,d,FixedCtrl(()=>fixedG));
+  hist={t:[],f:[],x:[]}; lastRec=-2; record();
+}
+function record(){ hist.t.push(simF.t); hist.f.push(simF.queued()); hist.x.push(simX.queued()); if(hist.t.length>301){hist.t.shift();hist.f.shift();hist.x.shift();} lastRec=simF.t; }
+
+// ---------- Renkler ----------
+let C={};
+function readColors(){ const cs=getComputedStyle(document.documentElement); const g=n=>cs.getPropertyValue(n).trim();
+  C={bg:g('--bg'),panel:g('--panel'),ink:g('--ink'),muted:g('--muted'),line:g('--line'),soft:g('--soft'),fuzzy:g('--fuzzy'),fixed:g('--fixed'),red:g('--red'),amber:g('--amber'),go:g('--go'),road:g('--road'),grass:g('--grass'),mark:g('--mark'),s:[g('--s1'),g('--s2'),g('--s3'),g('--s4')]}; }
+function rgb(h){ h=h.replace('#',''); if(h.length===3)h=h.split('').map(x=>x+x).join(''); const n=parseInt(h,16); return [n>>16&255,n>>8&255,n&255]; }
+function mix(a,b,f){ const A=rgb(a),B=rgb(b); return `rgb(${A.map((v,i)=>Math.round(v+(B[i]-v)*f)).join(',')})`; }
+function rgba(h,a){ const A=rgb(h); return `rgba(${A[0]},${A[1]},${A[2]},${a})`; }
+readColors();
+try{ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',readColors); }catch(e){}
+
+// ---------- Çizim yardımcıları ----------
+function prep(cv){
+  const dpr=window.devicePixelRatio||1, W=cv.clientWidth||300, H=cv.dataset.h==='sq'?W:+cv.dataset.h;
+  if(cv._W!==W||cv._H!==H||cv._d!==dpr){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); cv.style.height=H+'px'; cv._W=W; cv._H=H; cv._d=dpr; }
+  const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H); return {ctx,W,H};
+}
+const MONO='"IBM Plex Mono", monospace';
+function niceMax(v){ if(v<=0)return 1; const p=Math.pow(10,Math.floor(Math.log10(v))); const n=v/p; return (n<=1?1:n<=2?2:n<=5?5:10)*p; }
+
+function drawInter(cv,sim,base){
+  const {ctx,W}=prep(cv); const sc=W/(2*(L+BOX)), c=W/2, hw=LANEW*sc, b=BOX*sc;
+  ctx.fillStyle=C.grass; ctx.fillRect(0,0,W,W);
+  ctx.fillStyle=C.road; ctx.fillRect(c-hw,0,2*hw,W); ctx.fillRect(0,c-hw,W,2*hw);
+  ctx.strokeStyle=C.mark; ctx.globalAlpha=.55; ctx.lineWidth=1; ctx.setLineDash([6,7]);
+  ctx.beginPath(); ctx.moveTo(c,0); ctx.lineTo(c,c-b); ctx.moveTo(c,c+b); ctx.lineTo(c,W); ctx.moveTo(0,c); ctx.lineTo(c-b,c); ctx.moveTo(c+b,c); ctx.lineTo(W,c); ctx.stroke();
+  ctx.setLineDash([]); ctx.globalAlpha=1;
+  // yaya geçidi
+  ctx.fillStyle=C.mark; ctx.globalAlpha=.18;
+  for(let i=0;i<4;i++){ const d=DIRS[i], rn=[-d[1],d[0]];
+    for(let k=-4;k<4;k++){ const off=(k+0.5)*1.25, px=c+(-d[0]*(BOX-3)+rn[0]*off)*sc, py=c+(-d[1]*(BOX-3)+rn[1]*off)*sc;
+      ctx.save(); ctx.translate(px,py); ctx.rotate(Math.atan2(d[1],d[0])); ctx.fillRect(-2*sc,-0.35*sc,4*sc,0.7*sc); ctx.restore(); } }
+  ctx.globalAlpha=1;
+  // dur çizgileri ve lambalar
+  ctx.lineWidth=Math.max(2,0.6*sc); ctx.strokeStyle=C.mark;
+  for(let i=0;i<4;i++){ const d=DIRS[i], rn=[-d[1],d[0]];
+    const x0=c-d[0]*BOX*sc, y0=c-d[1]*BOX*sc;
+    ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x0+rn[0]*LANEW*sc,y0+rn[1]*LANEW*sc); ctx.stroke();
+    const s=sim.sig(i), col=s==='green'?C.go:s==='yellow'?C.amber:C.red;
+    const lx=c+(-d[0]*(BOX+2)+rn[0]*(LANEW+3))*sc, ly=c+(-d[1]*(BOX+2)+rn[1]*(LANEW+3))*sc, r=Math.max(4,1.9*sc);
+    ctx.fillStyle='#16181b'; ctx.beginPath(); ctx.arc(lx,ly,r+2,0,7); ctx.fill();
+    ctx.fillStyle=col; ctx.beginPath(); ctx.arc(lx,ly,r,0,7); ctx.fill();
+  }
+  // araçlar
+  for(let i=0;i<4;i++){ const d=DIRS[i], rn=[-d[1],d[0]], ang=Math.atan2(d[1],d[0]), ln=sim.lanes[i];
+    for(const car of ln.cars){ const dd=(L+BOX)-car.s;
+      const fx=c+(-d[0]*dd+rn[0]*LANEW/2)*sc, fy=c+(-d[1]*dd+rn[1]*LANEW/2)*sc;
+      ctx.save(); ctx.translate(fx,fy); ctx.rotate(ang);
+      ctx.fillStyle=mix(base,C.red,Math.min(1,car.wait/60));
+      const x=-CARLEN*sc, y=-CARW*sc/2, w=CARLEN*sc, h=CARW*sc;
+      if(ctx.roundRect){ ctx.beginPath(); ctx.roundRect(x,y,w,h,Math.min(3,h/2)); ctx.fill(); } else ctx.fillRect(x,y,w,h);
+      ctx.restore(); }
+    // kol adı ve bekleyen araçlar
+    const ex=c+(-d[0]*(L+BOX-7)+rn[0]*(LANEW+9))*sc, ey=c+(-d[1]*(L+BOX-7)+rn[1]*(LANEW+9))*sc;
+    ctx.font=`500 ${Math.max(10,Math.round(4.6*sc))}px ${MONO}`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    if(ln.pending.length){ ctx.fillStyle=C.red; ctx.fillText('+'+ln.pending.length,ex,ey); }
+    const ax=c+(-d[0]*(L+BOX-4)-rn[0]*(LANEW+9))*sc, ay=c+(-d[1]*(L+BOX-4)-rn[1]*(LANEW+9))*sc;
+    ctx.fillStyle=C.muted; ctx.font=`${Math.max(10,Math.round(4.2*sc))}px "IBM Plex Sans", sans-serif`; ctx.fillText(ARM[i],clamp(ax,26,W-26),ay);
+  }
+}
+
+function drawMF(cv,centers,names,xMax,x,mus,agg,out,unit){
+  const {ctx,W,H}=prep(cv); const pl=30,pr=12,pt=22,pb=22, iw=W-pl-pr, ih=H-pt-pb;
+  const X=v=>pl+v/xMax*iw, Y=m=>pt+(1-m)*ih;
+  ctx.font=`11px ${MONO}`; ctx.textBaseline='middle';
+  ctx.strokeStyle=C.line; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(pl,Y(0)); ctx.lineTo(W-pr,Y(0)); ctx.stroke();
+  ctx.setLineDash([3,4]); ctx.beginPath(); ctx.moveTo(pl,Y(1)); ctx.lineTo(W-pr,Y(1)); ctx.moveTo(pl,Y(.5)); ctx.lineTo(W-pr,Y(.5)); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle=C.muted; ctx.textAlign='right'; ctx.fillText('1',pl-6,Y(1)); ctx.fillText('0,5',pl-6,Y(.5)); ctx.fillText('0',pl-6,Y(0));
+  ctx.textAlign='center'; const step=xMax>15?5:3;
+  for(let v=0;v<=xMax+1e-9;v+=step) ctx.fillText(String(v),X(v),H-pb+12);
+  if(agg){ ctx.beginPath(); ctx.moveTo(X(0),Y(0)); for(let j=0;j<agg.length;j++) ctx.lineTo(X(j*xMax/(agg.length-1)),Y(agg[j])); ctx.lineTo(X(xMax),Y(0)); ctx.closePath(); ctx.fillStyle=rgba(C.fuzzy,.28); ctx.fill(); }
+  const cols=centers.length===3?[C.s[0],C.s[1],C.s[3]]:C.s;
+  for(let k=0;k<centers.length;k++){
+    ctx.strokeStyle=cols[k]; ctx.lineWidth=1.8; ctx.beginPath();
+    for(let j=0;j<=160;j++){ const v=j/160*xMax, m=ruspini(centers,k,v); j?ctx.lineTo(X(v),Y(m)):ctx.moveTo(X(v),Y(m)); }
+    ctx.stroke();
+    ctx.fillStyle=cols[k]; ctx.font=`500 11.5px "IBM Plex Sans", sans-serif`; ctx.textAlign='center';
+    ctx.fillText(names[k],clamp(X(Math.min(centers[k],xMax)),pl+14,W-pr-14),pt-11);
+  }
+  if(x!=null){ const xx=X(Math.min(x,xMax)); ctx.strokeStyle=C.ink; ctx.lineWidth=1; ctx.setLineDash([4,3]); ctx.beginPath(); ctx.moveTo(xx,Y(0)); ctx.lineTo(xx,Y(1.04)); ctx.stroke(); ctx.setLineDash([]);
+    for(let k=0;k<mus.length;k++) if(mus[k]>0){ ctx.fillStyle=cols[k]; ctx.beginPath(); ctx.arc(xx,Y(mus[k]),4,0,7); ctx.fill(); ctx.strokeStyle=C.panel; ctx.lineWidth=1.5; ctx.stroke();
+      ctx.fillStyle=C.ink; ctx.font=`11px ${MONO}`; ctx.textAlign=xx>W-70?'right':'left'; ctx.fillText(fmt(mus[k],2),xx+(xx>W-70?-8:8),Y(mus[k])); } }
+  if(out!=null){ const xo=X(out); ctx.strokeStyle=C.fuzzy; ctx.lineWidth=2.2; ctx.beginPath(); ctx.moveTo(xo,Y(0)); ctx.lineTo(xo,Y(1.04)); ctx.stroke();
+    ctx.fillStyle=C.fuzzy; ctx.font=`500 11.5px ${MONO}`; ctx.textAlign=xo>W-80?'right':'left'; ctx.fillText(`ağırlık merkezi ${fmt(out)} ${unit}`,xo+(xo>W-80?-6:6),Y(0.86)); }
+}
+
+function drawLines(cv,series,o){
+  const {ctx,W,H}=prep(cv); const pl=38,pr=12,pt=10,pb=26, iw=W-pl-pr, ih=H-pt-pb;
+  let ym=o.yMax||0; for(const s of series) for(const v of s.ys) if(v>ym) ym=v; ym=niceMax(ym*1.05);
+  const xmin=o.xMin, xmax=Math.max(o.xMax,xmin+1e-6);
+  const X=v=>pl+(v-xmin)/(xmax-xmin)*iw, Y=v=>pt+(1-v/ym)*ih;
+  ctx.font=`11px ${MONO}`; ctx.textBaseline='middle'; ctx.strokeStyle=C.line; ctx.lineWidth=1; ctx.fillStyle=C.muted;
+  for(let k=0;k<=4;k++){ const v=ym*k/4, y=Y(v); ctx.beginPath(); ctx.moveTo(pl,y); ctx.lineTo(W-pr,y); ctx.stroke(); ctx.textAlign='right'; ctx.fillText(Number.isInteger(v)?String(v):fmt(v),pl-6,y); }
+  ctx.textAlign='center';
+  for(const tv of o.xTicks) ctx.fillText(o.xFmt(tv),clamp(X(tv),pl+10,W-pr-18),H-pb+14);
+  for(const r of (o.refs||[])){ ctx.strokeStyle=r.color; ctx.setLineDash([5,4]); ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(pl,Y(r.y)); ctx.lineTo(W-pr,Y(r.y)); ctx.stroke(); ctx.setLineDash([]); }
+  for(const s of series){ if(!s.xs.length) continue; ctx.strokeStyle=s.color; ctx.lineWidth=s.w||2; ctx.beginPath();
+    s.xs.forEach((x,i)=>{ const px=X(x), py=Y(s.ys[i]); i?ctx.lineTo(px,py):ctx.moveTo(px,py); }); ctx.stroke();
+    if(s.dots){ ctx.fillStyle=s.color; s.xs.forEach((x,i)=>{ ctx.beginPath(); ctx.arc(X(x),Y(s.ys[i]),2.6,0,7); ctx.fill(); }); } }
+}
+
+// ---------- Arayüz ----------
+const $=id=>document.getElementById(id);
+const sliderDefs=[
+  {id:'r0',label:'Kuzey (araç/dk)',min:0,max:25,step:1,get:()=>cfg.rates[0],set:v=>cfg.rates[0]=v,rate:true},
+  {id:'r1',label:'Güney (araç/dk)',min:0,max:25,step:1,get:()=>cfg.rates[1],set:v=>cfg.rates[1]=v,rate:true},
+  {id:'fg',label:'Sabit yeşil süresi',min:10,max:60,step:1,get:()=>fixedG,set:v=>fixedG=v,unit:' s'},
+  {id:'r2',label:'Batı (araç/dk)',min:0,max:25,step:1,get:()=>cfg.rates[2],set:v=>cfg.rates[2]=v,rate:true},
+  {id:'r3',label:'Doğu (araç/dk)',min:0,max:25,step:1,get:()=>cfg.rates[3],set:v=>cfg.rates[3]=v,rate:true},
+  {id:'mg',label:'Bulanık maks. yeşil',min:20,max:90,step:1,get:()=>maxG,set:v=>maxG=v,unit:' s'},
+];
+const sl=$('sliders');
+for(const d of sliderDefs){
+  const w=document.createElement('label'); w.className='sl';
+  w.innerHTML=`<span>${d.label}</span><input type="range" min="${d.min}" max="${d.max}" step="${d.step}" id="${d.id}"><output id="${d.id}o"></output>`;
+  sl.appendChild(w);
+  const inp=w.querySelector('input'), out=w.querySelector('output');
+  inp.value=d.get(); out.textContent=d.get()+(d.unit||'');
+  inp.addEventListener('input',()=>{ d.set(+inp.value); out.textContent=inp.value+(d.unit||''); if(d.rate) $('preset').value='ozel'; });
+  d.sync=()=>{ inp.value=d.get(); out.textContent=d.get()+(d.unit||''); };
+}
+$('preset').addEventListener('change',e=>{ const p=PRESETS[e.target.value]; if(!p) return; cfg.rates=p.slice(); sliderDefs.forEach(d=>d.sync()); reset(true); });
+$('dyn').addEventListener('change',e=>{ cfg.dyn=e.target.checked; reset(true); });
+let running=true, speed=4;
+$('play').addEventListener('click',()=>{ running=!running; $('play').textContent=running?'Duraklat':'Devam et'; });
+$('reset').addEventListener('click',()=>reset(true));
+$('speed').addEventListener('change',e=>speed=+e.target.value);
+
+function mkStats(el){ el.innerHTML=['Ort. gecikme','Geçen araç','Kuyrukta','Faz değişimi'].map(k=>`<div class="tile"><div class="k">${k}</div><div class="v">–</div></div>`).join(''); return [...el.querySelectorAll('.v')]; }
+const stF=mkStats($('stF')), stX=mkStats($('stX'));
+
+// kural tablosu
+const rt=$('rules');
+rt.innerHTML=`<thead><tr><th class="rh">Yeşil ↓ · Kırmızı →</th>${SETS_IN.map(s=>`<th>${s}</th>`).join('')}</tr></thead><tbody>${
+  SETS_IN.map((s,a)=>`<tr><th class="rh">${s}</th>${[0,1,2].map(b=>`<td><button data-k="${a*3+b}"><span class="lab"></span><span class="w"></span></button></td>`).join('')}</tr>`).join('')}</tbody>`;
+const ruleBtns=[...rt.querySelectorAll('button')];
+ruleBtns.forEach(bt=>bt.addEventListener('click',()=>{ const k=+bt.dataset.k; P.rules[k]=(P.rules[k]+1)%4; }));
+$('rulesReset').addEventListener('click',()=>{ P=clone(DEFAULT_P); });
+
+function phaseHTML(sim){
+  const st=sim.state==='green'?'yeşil':sim.state==='yellow'?'sarı':'tüm yönler kırmızı';
+  const col=sim.state==='green'?C.go:sim.state==='yellow'?C.amber:C.red;
+  return `<span class="lamp" style="background:${col}"></span>${PHASE_NAMES[sim.phase]} ${st} · ${fmt(sim.stateT,0)} s`;
+}
+function fillStats(t,sim){
+  t[0].innerHTML=`${fmt(sim.avgDelay())} <small>s/araç</small>`;
+  t[1].textContent=sim.crossed; t[2].textContent=sim.queued(); t[3].textContent=sim.switches;
+}
+
+function render(){
+  drawInter($('cvF'),simF,C.fuzzy); drawInter($('cvX'),simX,C.fixed);
+  $('phF').innerHTML=phaseHTML(simF); $('phX').innerHTML=phaseHTML(simX);
+  fillStats(stF,simF); fillStats(stX,simX);
+  const L_=simF.ctrl.last;
+  $('decF').innerHTML=L_?`Son karar (${mmss(L_.t)}): yeşil yönde <b>${L_.qG}</b>, kırmızı yönde <b>${L_.qR}</b> araç → <b>${L_.act}</b>`:'İlk karar en az 7 s yeşilden sonra verilir.';
+  $('decX').innerHTML=`Her faz <b>${fixedG} s</b> yeşil + ${YELLOW} s sarı + ${ALLRED} s tüm kırmızı. Döngü süresi ${2*(fixedG+YELLOW+ALLRED)} s.`;
+  $('clock').textContent=mmss(simF.t);
+  // karşılaştırma
+  const df=simF.avgDelay(), dx=simX.avgDelay();
+  if(simF.t<60||dx<=0) $('verdict').innerHTML='Simülasyon ısınıyor… Karşılaştırma ilk dakikadan sonra görünür.';
+  else{ const pct=(dx-df)/dx*100;
+    $('verdict').innerHTML=pct>=0?`Bu akışta bulanık kontrol, araç başına ortalama gecikmeyi sabit süreli sinyale göre <b style="color:var(--fuzzy)">%${fmt(pct,0)} azaltıyor</b> (${fmt(df)} s / ${fmt(dx)} s).`
+      :`Bu akışta sabit süreli sinyal şimdilik <b style="color:var(--fixed)">%${fmt(-pct,0)} daha az gecikmeyle</b> önde (${fmt(dx)} s / ${fmt(df)} s). Kuralları değiştirmeyi ya da GA optimizasyonunu deneyin.`; }
+  // canlı çıkarım
+  const qG=simF.phaseCount(simF.phase), qR=simF.phaseCount(1-simF.phase), r=infer(P,qG,qR,true);
+  $('vG').textContent=`= ${qG} (${PHASE_NAMES[simF.phase]})`; $('vR').textContent=`= ${qR} (${PHASE_NAMES[1-simF.phase]})`; $('vO').textContent=`= ${fmt(r.out)} s`;
+  drawMF($('mfG'),P.g,SETS_IN,IN_MAX,Math.min(qG,IN_MAX),r.muG,null,null);
+  drawMF($('mfR'),P.r,SETS_IN,IN_MAX,Math.min(qR,IN_MAX),r.muR,null,null);
+  drawMF($('mfO'),P.o,SETS_OUT,OUT_MAX,null,[],r.agg,r.out,'s');
+  ruleBtns.forEach((bt,k)=>{ const f=r.fire[k]; bt.querySelector('.lab').textContent=SETS_OUT[P.rules[k]]; bt.querySelector('.w').textContent='μ = '+fmt(f,2);
+    bt.style.background=rgba(C.fuzzy,0.06+0.6*f); bt.style.borderColor=f>0?C.fuzzy:C.line; bt.style.color=f>0.55?'#fff':C.ink; bt.querySelector('.w').style.color=f>0.55?'#fff':C.muted; });
+  // kuyruk grafiği
+  const t1=Math.max(600,hist.t[hist.t.length-1]||0), t0=t1-600, ticks=[]; for(let v=Math.ceil(t0/120)*120;v<=t1;v+=120) ticks.push(v);
+  drawLines($('cvQ'),[{xs:hist.t,ys:hist.x,color:C.fixed},{xs:hist.t,ys:hist.f,color:C.fuzzy}],{xMin:t0,xMax:t1,xTicks:ticks,xFmt:mmss,yMax:5});
+}
+
+// ---------- Döngü ----------
+let acc=0,lastTs=0;
+function frame(ts){
+  const rdt=lastTs?Math.min(0.1,(ts-lastTs)/1000):0; lastTs=ts;
+  if(running&&!gaBusy){ acc+=rdt*speed; let n=0;
+    while(acc>=DT_VIS&&n<1000){ simF.step(DT_VIS); simX.step(DT_VIS); acc-=DT_VIS; n++; if(simF.t-lastRec>=2-1e-9) record(); } }
+  render(); requestAnimationFrame(frame);
+}
+
+// ---------- Genetik algoritma ----------
+let gaBusy=false, gaBest=null;
+const tick=()=>new Promise(r=>setTimeout(r,0));
+function evaluate(mk,demand,seeds,dur,dt){ let s=0; const n=Math.round(dur/dt); for(const sd of seeds){ const sim=new Sim(sd,demand,mk()); for(let i=0;i<n;i++) sim.step(dt); s+=sim.avgDelay(); } return s/seeds.length; }
+function randn(){ let u=0,v=0; while(!u)u=Math.random(); while(!v)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function fixC(c,max){ const n=c.length; c.sort((a,b)=>a-b); for(let k=0;k<n;k++) c[k]=clamp(c[k],0,max);
+  for(let k=1;k<n;k++) if(c[k]<c[k-1]+0.5) c[k]=c[k-1]+0.5;
+  if(c[n-1]>max){ c[n-1]=max; for(let k=n-2;k>=0;k--) if(c[k]>c[k+1]-0.5) c[k]=c[k+1]-0.5; } return c; }
+function randInd(){ const ru=(n,m)=>fixC(Array.from({length:n},()=>Math.random()*m),m);
+  return {g:ru(3,IN_MAX),r:ru(3,IN_MAX),o:ru(4,OUT_MAX),rules:Array.from({length:9},()=>Math.floor(Math.random()*4))}; }
+function cross(a,b){ const mx=(x,y)=>x.map((v,i)=>v+(Math.random()*1.4-0.2)*(y[i]-v));
+  return {g:mx(a.g,b.g),r:mx(a.r,b.r),o:mx(a.o,b.o),rules:a.rules.map((v,i)=>Math.random()<0.5?v:b.rules[i])}; }
+function mutate(p){ const m=(arr,s)=>{ for(let i=0;i<arr.length;i++) if(Math.random()<0.3) arr[i]+=randn()*s; };
+  m(p.g,2); m(p.r,2); m(p.o,1.5);
+  for(let i=0;i<9;i++) if(Math.random()<0.12) p.rules[i]=clamp(p.rules[i]+(Math.random()<0.5?-1:1),0,3);
+  fixC(p.g,IN_MAX); fixC(p.r,IN_MAX); fixC(p.o,OUT_MAX); return p; }
+function tour(pop,fit){ let b=-1; for(let i=0;i<3;i++){ const j=Math.floor(Math.random()*pop.length); if(b<0||fit[j]<fit[b]) b=j; } return pop[b]; }
+
+function drawGA(h,gens,refs){
+  const xs=h.map((_,i)=>i), ticks=[]; const st=gens>12?5:gens>6?2:1; for(let g=0;g<=gens;g+=st) ticks.push(g);
+  drawLines($('cvGA'),[{xs,ys:h.map(e=>e.mean),color:C.muted,w:1.5},{xs,ys:h.map(e=>e.best),color:C.fuzzy,w:2.2,dots:true}],
+    {xMin:0,xMax:gens,xTicks:ticks,xFmt:v=>String(v),refs,yMax:0});
+}
+function showResults(R){
+  const rows=[
+    {nm:`Sabit süreli · mevcut (${R.fg} s)`,v:R.fixedNow,c:C.fixed},
+    {nm:`Sabit süreli · en iyi süre (${R.bestG} s)`,v:R.bestGv,c:C.fixed},
+    {nm:'Bulanık · başlangıç kuralları',v:R.startV,c:C.s[1]},
+    {nm:'Bulanık · GA ile optimize',v:R.v,c:C.fuzzy},
+  ];
+  const mx=Math.max(...rows.map(r=>r.v));
+  const imp=(R.bestGv-R.v)/R.bestGv*100;
+  $('gaResults').innerHTML=`<div class="fz-title"><b>Sonuçlar</b> · araç başına ortalama gecikme (720 s × 2 akış)</div>`+
+    rows.map(r=>`<div class="res-row"><div><div class="nm">${r.nm}</div><div class="bar" style="width:${(r.v/mx*100).toFixed(1)}%;background:${r.c}"></div></div><div class="val">${fmt(r.v)} s</div></div>`).join('')+
+    `<p class="muted" style="margin-top:12px">GA ile optimize edilen bulanık kontrolcü, en iyi sabit süreli sinyale göre gecikmeyi <b style="color:var(--${imp>=0?'fuzzy':'fixed'})">%${fmt(Math.abs(imp),0)} ${imp>=0?'azaltıyor':'artırıyor'}</b>.</p>
+    <div class="row"><button id="gaApply" class="primary">GA çözümünü canlı simülasyona uygula</button><button id="gaFix">Sabit süreyi ${R.bestG} s yap</button></div>`;
+  $('gaApply').addEventListener('click',()=>{ P=clone(R.p); reset(true); window.scrollTo({top:0,behavior:'smooth'}); });
+  $('gaFix').addEventListener('click',()=>{ fixedG=R.bestG; sliderDefs.forEach(d=>d.sync()); reset(true); });
+}
+
+$('gaRun').addEventListener('click',async()=>{
+  if(gaBusy) return; gaBusy=true; $('gaRun').disabled=true;
+  const snap={rates:cfg.rates.slice(),dyn:cfg.dyn}, dem=makeDemand(snap), mg=maxG, fg=fixedG;
+  const SEEDS=[101,202], DUR=720, DT=0.25;
+  const fz=p=>evaluate(()=>FuzzyCtrl(()=>p,()=>mg),dem,SEEDS,DUR,DT);
+  const fx=g=>evaluate(()=>FixedCtrl(()=>g),dem,SEEDS,DUR,DT);
+  const popN=+$('gaPop').value, gens=+$('gaGen').value;
+  const total=1+11+1+popN+gens*(popN-2); let done=0;
+  const prog=m=>{ $('gaBar').style.width=(100*done/total).toFixed(1)+'%'; $('gaStatus').textContent=m; };
+  prog('Sabit süreler taranıyor…'); await tick();
+  const fixedNow=fx(fg); done++;
+  let bestG=10,bestGv=Infinity;
+  for(let g=10;g<=60;g+=5){ const v=fx(g); done++; if(v<bestGv){bestGv=v;bestG=g;} prog(`Sabit süre taranıyor: ${g} s`); await tick(); }
+  const startP=clone(P), startV=fz(startP); done++;
+  let pop=[startP,clone(DEFAULT_P)]; while(pop.length<popN) pop.push(randInd());
+  let fit=[]; for(let i=0;i<pop.length;i++){ fit.push(fz(pop[i])); done++; prog(`Başlangıç popülasyonu ${i+1}/${popN}`); await tick(); }
+  const h=[], refs=[{y:bestGv,color:C.fixed}];
+  for(let g=0;g<=gens;g++){
+    const idx=[...pop.keys()].sort((a,b)=>fit[a]-fit[b]); pop=idx.map(i=>pop[i]); fit=idx.map(i=>fit[i]);
+    h.push({best:fit[0],mean:fit.reduce((a,b)=>a+b,0)/fit.length}); drawGA(h,gens,refs);
+    prog(`Nesil ${g}/${gens} · en iyi ${fmt(fit[0])} s`); await tick();
+    if(g===gens) break;
+    const np=[clone(pop[0]),clone(pop[1])], nf=[fit[0],fit[1]];
+    while(np.length<popN){ const c=mutate(cross(tour(pop,fit),tour(pop,fit))); np.push(c); nf.push(fz(c)); done++;
+      if(np.length%2===0){ prog(`Nesil ${g+1}/${gens} · birey ${np.length}/${popN}`); await tick(); } }
+    pop=np; fit=nf;
+  }
+  done=total; prog(`Tamamlandı · en iyi ${fmt(fit[0])} s/araç`);
+  gaBest={p:clone(pop[0]),v:fit[0],fixedNow,fg,bestG,bestGv,startV};
+  showResults(gaBest); drawGA(h,gens,refs);
+  gaBusy=false; $('gaRun').disabled=false; lastTs=0;
+});
+
+drawLines($('cvGA'),[],{xMin:0,xMax:15,xTicks:[0,5,10,15],xFmt:String,yMax:10});
+reset(false);
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
