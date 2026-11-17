@@ -1,11 +1,11 @@
 /* Ağır hesaplamalar (toplu deney, duyarlılık, GA, Q-öğrenme) arayüzü dondurmadan burada çalışır. */
-importScripts('engine.js');
+importScripts('engine.js', 'net.js');
 self.onmessage = (e) => {
   const { id, task, cfg } = e.data;
   if (cfg && cfg.ctx) {
     if (cfg.ctx.Q && !(cfg.ctx.Q instanceof Float64Array)) cfg.ctx.Q = Float64Array.from(cfg.ctx.Q);
   }
-  const gen = { lab: BT.taskLab, sens: BT.taskSens, ga: BT.taskGA, q: BT.taskQ }[task](cfg);
+  const gen = { lab: BT.taskLab, sens: BT.taskSens, ga: BT.taskGA, q: BT.taskQ, netlab: BT.taskNetLab }[task](cfg);
   let last = 0;
   try {
     for (;;) {

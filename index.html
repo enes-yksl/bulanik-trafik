@@ -19,6 +19,7 @@
   </div>
   <nav class="tabs" id="tabs">
     <a href="#simulator" data-v="simulator">Simülatör</a>
+    <a href="#network" data-v="network">Ağ Simülasyonu</a>
     <a href="#lab" data-v="lab">Deney Laboratuvarı</a>
     <a href="#optimize" data-v="optimize">Optimizasyon</a>
     <a href="#method" data-v="method">Yöntem ve Literatür</a>
@@ -84,6 +85,90 @@
   <section class="card">
     <div class="card-head"><h2>Kuyruktaki toplam araç</h2><div class="legend right" id="qLegend"></div></div>
     <canvas id="cvQ" data-h="190"></canvas>
+  </section>
+</section>
+
+<!-- =================== AĞ SİMÜLASYONU =================== -->
+<section class="view" id="v-network">
+  <div class="eyebrow">Ağ simülasyonu</div>
+  <h1>Birden çok kavşaklı yol ağlarını simüle edin</h1>
+  <p class="lead">Gerçek şehir trafiğinde kavşaklar birbirini etkiler. Bir kavşaktan çıkan araçlar sonrakinin talebini oluşturur. Kuyruk bir sonraki yola sığmazsa önceki kavşağı tıkar (geri taşma). Ardışık sinyaller koordine edilirse araçlar durmadan ilerleyebilir (yeşil dalga). Bu sekmede iki özdeş ağa aynı araç akışı gönderilir ve her ağdaki tüm kavşaklar seçtiğiniz denetleyiciyle yönetilir. Araçlar kavşaklarda belirlenen oranlarda sağa ya da sola döner.</p>
+
+  <div class="card">
+    <div class="row">
+      <button id="nPlay" class="primary">Duraklat</button>
+      <button id="nReset">Sıfırla</button>
+      <label class="inline">Hız <select id="nSpeed"><option value="1">1×</option><option value="2">2×</option><option value="4" selected>4×</option><option value="8">8×</option><option value="16">16×</option></select></label>
+      <label class="inline">Ağ <select id="nSel"></select></label>
+      <label class="inline">Talep profili <select id="nProf"></select></label>
+      <div class="clock">Simülasyon zamanı <b id="nClock">00:00</b></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label class="inline"><span class="dot" id="nDotA"></span>Ağ A <select id="nCtlA"></select></label>
+      <label class="inline"><span class="dot" id="nDotB"></span>Ağ B <select id="nCtlB"></select></label>
+    </div>
+    <div class="scdesc" id="nDesc"></div>
+    <div class="sliders" id="nSliders"></div>
+  </div>
+
+  <div id="nWrap" class="grid2" style="margin-top:16px">
+    <article class="card">
+      <div class="card-head"><span class="dot" id="nHdA"></span><h2 id="nNmA"></h2><span class="sub" id="nPlanA"></span></div>
+      <canvas id="nCvA" class="simcv" data-h="300"></canvas>
+      <div class="stats s5" id="nStA"></div>
+      <div class="nchips" id="nChA"></div>
+    </article>
+    <article class="card">
+      <div class="card-head"><span class="dot" id="nHdB"></span><h2 id="nNmB"></h2><span class="sub" id="nPlanB"></span></div>
+      <canvas id="nCvB" class="simcv" data-h="300"></canvas>
+      <div class="stats s5" id="nStB"></div>
+      <div class="nchips" id="nChB"></div>
+    </article>
+  </div>
+
+  <div class="verdict" id="nVerdict">Simülasyon ısınıyor…</div>
+
+  <section class="card">
+    <div class="card-head"><h2>Ağdaki kuyruklu araç sayısı</h2><div class="legend right" id="nQLegend"></div></div>
+    <canvas id="nCvQ" data-h="180"></canvas>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Ağ deneyi</h2><span class="sub">Ağ × denetleyici × tekrar. Talep her ağın varsayılan değeridir. Dönüş oranları ve profil yukarıdaki ayarlardan alınır.</span></div>
+    <div class="grid2">
+      <div class="fieldset"><div class="lg">Ağlar <button class="small ghost" data-all="nlNets">Tümü / hiçbiri</button></div><div class="checks c2" id="nlNets"></div></div>
+      <div class="fieldset"><div class="lg">Denetleyiciler <button class="small ghost" data-all="nlCt">Tümü / hiçbiri</button></div><div class="checks c2" id="nlCt"></div></div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <label class="inline">Tekrar <select id="nlReps"><option>3</option><option selected>5</option><option>10</option></select></label>
+      <label class="inline">Süre <select id="nlDur"><option value="900">15 dk</option><option value="1200" selected>20 dk</option><option value="1800">30 dk</option></select></label>
+      <label class="inline">Referans <select id="nlRef"></select></label>
+      <button id="nlRun" class="primary">Ağ deneyini çalıştır</button>
+      <button id="nlStop" class="ghost" disabled>Durdur</button>
+    </div>
+    <div class="row" style="margin-top:12px"><div class="progress"><div id="nlBar"></div></div><span class="status" id="nlStatus">Hazır · 5 dk ısınma süresi ölçüme katılmaz</span></div>
+    <div id="nlBody" style="display:none;margin-top:16px">
+      <div class="row" style="margin-bottom:8px">
+        <label class="inline">Ölçüt <select id="nlMetric">
+          <option value="delay">Ortalama yolculuk gecikmesi (s/araç)</option>
+          <option value="eDelay">Arter, doğuya düz geçen araç gecikmesi (s)</option>
+          <option value="tt">Ortalama yolculuk süresi (s)</option>
+          <option value="p95">95. persentil gecikme (s)</option>
+          <option value="stops">Yolculuk başına duruş</option>
+          <option value="thru">Tamamlanan yolculuk (araç/sa)</option>
+          <option value="blocked">Geri taşma blokajı (araç·dk/sa)</option>
+          <option value="maxQ">En büyük ağ kuyruğu (araç)</option>
+        </select></label>
+        <label class="check"><input type="checkbox" id="nlLog"> Logaritmik eksen</label>
+      </div>
+      <div class="legend" id="nlLegend" style="margin-bottom:6px"></div>
+      <canvas id="nlCv" data-h="300"></canvas>
+      <h3>Ortalama ± %95 güven aralığı</h3>
+      <div class="tbl-wrap"><table class="data" id="nlTable"></table></div>
+      <h3>Anlamlılık testi</h3>
+      <p class="hint" id="nlSigNote"></p>
+      <div class="tbl-wrap"><table class="data" id="nlSig"></table></div>
+    </div>
   </section>
 </section>
 
@@ -225,7 +310,7 @@
   <div class="eyebrow">Akademik dayanak</div>
   <h1>Yöntem ve literatür</h1>
   <p class="lead">Bu bölüm, simülatörde uygulanan her yöntemin kuramsal dayanağını, modelleme varsayımlarını ve deney tasarımını özetler. Metin, bir bitirme projesi veya makalenin "Literatür" ve "Yöntem" bölümleri için iskelet olarak kullanılabilir.</p>
-  <div class="toc"><a href="#method" data-jump="m1">1. Problem</a><a href="#method" data-jump="m2">2. Bulanık mantık</a><a href="#method" data-jump="m3">3. Literatür</a><a href="#method" data-jump="m4">4. Referans yöntemler</a><a href="#method" data-jump="m5">5. Genetik-bulanık sistemler</a><a href="#method" data-jump="m6">6. Pekiştirmeli öğrenme</a><a href="#method" data-jump="m7">7. Simülasyon modeli</a><a href="#method" data-jump="m8">8. Ölçütler</a><a href="#method" data-jump="m9">9. Deney tasarımı</a><a href="#method" data-jump="refs">Kaynakça</a></div>
+  <div class="toc"><a href="#method" data-jump="m1">1. Problem</a><a href="#method" data-jump="m2">2. Bulanık mantık</a><a href="#method" data-jump="m3">3. Literatür</a><a href="#method" data-jump="m4">4. Referans yöntemler</a><a href="#method" data-jump="m5">5. Genetik-bulanık sistemler</a><a href="#method" data-jump="m6">6. Pekiştirmeli öğrenme</a><a href="#method" data-jump="m7">7. Simülasyon modeli</a><a href="#method" data-jump="m8">8. Ölçütler</a><a href="#method" data-jump="m9">9. Deney tasarımı</a><a href="#method" data-jump="m10">10. Ağ modeli</a><a href="#method" data-jump="refs">Kaynakça</a></div>
 
   <h2 id="m1">1. Problem tanımı</h2>
   <p>Çalışma, dört kollu ve izole bir kavşağı ele alır. Kavşakta iki faz vardır: Kuzey–Güney (K–G) ve Batı–Doğu (B–D). Her kolda düz giden tek bir şerit bulunur. Denetleyici, yeşil fazın ne zaman sonlandırılacağına karar verir. Amaç, araç başına ortalama kontrol gecikmesini en aza indirmektir. Bu ölçüt, sinyalli kavşaklarda hizmet düzeyinin (LOS) belirlendiği temel ölçüttür <a class="cite" data-ref="hcm2010" href="#method">(TRB, 2010)</a>.</p>
@@ -293,6 +378,19 @@
     <li><b>Genelleme:</b> GA ve Q-öğrenme eğitim tohumlarında (101, 202) eğitilir. Raporlanan test sonuçları, eğitimde hiç görülmemiş beş tohumla (303–707) hesaplanır.</li>
   </ul>
 
+  <h2 id="m10">10. Ağ modeli ve koordinasyon</h2>
+  <p>İzole kavşak analizi, kavşaklar arasındaki etkileşimi göz ardı eder. Ağ Simülasyonu sekmesi, modeli düzenli ızgara biçimindeki çok kavşaklı ağlara genişletir. Kavşaklar arası mesafeler eşit değildir. Her kavşak aynı iki fazlı sinyal yapısına ve kendi denetleyicisine sahiptir. Ağın kenarındaki giriş bağlantılarında araçlar Poisson süreciyle üretilir. Ana arter girişleri (batı–doğu) ve yan yol girişleri (kuzey–güney) için ayrı talep tanımlanır.</p>
+  <ul>
+    <li><b>Rota ve dönüşler:</b> Araç her kavşakta \(p_L\) olasılıkla sola, \(p_R\) olasılıkla sağa döner, kalan olasılıkla düz gider. Rastgele sayılar araca bağlı bir tohumdan üretilir. Bu sayede aynı araç, farklı denetleyicilerde aynı rotayı izler (ortak rastgele sayılar ağ ölçeğinde de korunur).</li>
+    <li><b>Geri taşma:</b> Yeşil yanarken bile araç, gideceği bağlantının girişinde boşluk yoksa kavşağa girmez ("kavşağı tıkama" kuralı). Böylece kuyruk bir kavşaktan önceki kavşağa taşabilir. Bu şekilde bekleyen araçların toplam süresi "geri taşma blokajı" olarak ölçülür.</li>
+    <li><b>Webster planı:</b> Her kavşağın kritik akım oranları, giriş talepleri dönüş oranlarıyla ağ boyunca yayılarak hesaplanır. Böylece kavşağa ağ içinden gelen trafik de hesaba katılır: \(q_{\text{çıkış}}=\sum_{\text{giriş}} q_{\text{giriş}}\,p_{\text{dönüş}}\).</li>
+    <li><b>Yeşil dalga (koordineli sabit plan):</b> Tüm kavşaklarda en kritik kavşağın döngüsüne eşit, ortak bir döngü \(C\) kullanılır. B–D yeşilinin başlangıcı, doğuya giden akış için ilerleme hızı \(v_p=12\) m/s ile ofsetlenir:</li>
+  </ul>
+  <div class="eq">\[ \theta_j=\frac{x_j-x_1}{v_p}\ \bmod\ C \]</div>
+  <p>Koordinasyon, sinyal zamanlamasının sistem ölçeğindeki temel konularından biridir <a class="cite" data-ref="stm2015" href="#method">(Urbanik vd., 2015)</a>. Bulanık denetim de koordineli tek yönlü yollar için uyarlanmıştır <a class="cite" data-ref="niittymaki1999" href="#method">(Niittymäki, 1999)</a>. Bu projedeki bulanık, araç tetiklemeli ve Q-öğrenme denetleyicileri yalnızca kendi yaklaşımlarını gözlemler, yani koordinasyonsuz çalışır. Bu sayede ağ sekmesi şu soruyu doğrudan sınar: Yerel uyarlanabilirlik mi daha değerlidir, ağ düzeyinde koordinasyon mu?</p>
+  <p><b>Ağ ölçütleri.</b> Ağ için şu ölçütler kullanılır: yolculuk başına gecikme (yolculuk süresi eksi serbest akım süresi), yolculuk süresi, yolculuk başına duruş, tamamlanan yolculuk sayısı ve saat başına geri taşma blokajı (araç·dk). Bunlara ek olarak <i>arter gecikmesi</i> ölçülür. Bu ölçüt, ana arterde batıdan doğuya hiç dönmeden geçen araçların gecikmesidir ve yeşil dalganın hedeflediği akışı ayrıca izler.</p>
+  <p class="note">Basitleştirmeler: Kavşak içinde sola dönen araç ile karşı yönden düz gelen araç arasındaki çatışma modellenmez. Her yönde tek şerit vardır ve dönüş cebi yoktur. Bu nedenle sola dönüş oranı yüksek olduğunda kapasite gerçekte olduğundan yüksek çıkabilir.</p>
+
   <h2 id="refs">Kaynakça</h2>
   <ol class="refs">
     <li id="ref-abdulhai2003">Abdulhai, B., Pringle, R. ve Karakoulas, G. J. (2003). Reinforcement learning for true adaptive traffic signal control. <i>Journal of Transportation Engineering</i>, 129(3), 278–285. <a href="https://doi.org/10.1061/(ASCE)0733-947X(2003)129:3(278)">doi:10.1061/(ASCE)0733-947X(2003)129:3(278)</a></li>
@@ -307,6 +405,7 @@
     <li id="ref-lopez2018">Lopez, P. A., Behrisch, M., Bieker-Walz, L., Erdmann, J., Flötteröd, Y.-P., Hilbrich, R., Lücken, L., Rummel, J., Wagner, P. ve Wießner, E. (2018). Microscopic traffic simulation using SUMO. <i>21st IEEE International Conference on Intelligent Transportation Systems (ITSC)</i>, 2575–2582. <a href="https://doi.org/10.1109/ITSC.2018.8569938">doi:10.1109/ITSC.2018.8569938</a></li>
     <li id="ref-mamdani1975">Mamdani, E. H. ve Assilian, S. (1975). An experiment in linguistic synthesis with a fuzzy logic controller. <i>International Journal of Man-Machine Studies</i>, 7(1), 1–13. <a href="https://doi.org/10.1016/S0020-7373(75)80002-2">doi:10.1016/S0020-7373(75)80002-2</a></li>
     <li id="ref-niittymaki2000">Niittymäki, J. ve Pursula, M. (2000). Signal control using fuzzy logic. <i>Fuzzy Sets and Systems</i>, 116(1), 11–22. <a href="https://doi.org/10.1016/S0165-0114(99)00034-2">doi:10.1016/S0165-0114(99)00034-2</a></li>
+    <li id="ref-niittymaki1999">Niittymäki, J. (1999). Fuzzy logic two-phase traffic signal control for coordinated one-way streets. <i>Proceedings of the IEEE Midnight-Sun Workshop on Soft Computing Methods in Industrial Applications</i>, Kuusamo, Finlandiya, 69–74.</li>
     <li id="ref-pappis1977">Pappis, C. P. ve Mamdani, E. H. (1977). A fuzzy logic controller for a traffic junction. <i>IEEE Transactions on Systems, Man, and Cybernetics</i>, 7(10), 707–717. <a href="https://doi.org/10.1109/TSMC.1977.4309605">doi:10.1109/TSMC.1977.4309605</a></li>
     <li id="ref-trabia1999">Trabia, M. B., Kaseko, M. S. ve Ande, M. (1999). A two-stage fuzzy logic controller for traffic signals. <i>Transportation Research Part C: Emerging Technologies</i>, 7(6), 353–367.</li>
     <li id="ref-hcm2010">Transportation Research Board (2010). <i>Highway Capacity Manual 2010</i>. TRB, Washington, D.C.</li>
@@ -340,6 +439,7 @@
       <tr><td>AS4</td><td>İyileşmenin kaynağı üyelik fonksiyonları mı, kural tabanı mı?</td><td>H4: Kural öğrenimi, yalnız üyelik ayarından daha büyük katkı sağlar.</td></tr>
       <tr><td>AS5</td><td>Yorumlanabilir bulanık sistem, kara kutu sayılabilecek bir pekiştirmeli öğrenme ajanına göre nerede durur?</td><td>H5: GA ile ayarlanmış bulanık sistem, aynı bilgiyle eğitilen tablo tabanlı Q-öğrenmeye denk ya da ondan iyidir.</td></tr>
       <tr><td>AS6</td><td>Hangi talep düzeyinde uyarlanabilir kontrolün avantajı kaybolur?</td><td>H6: Avantaj orta talepte en büyüktür. Kapasiteye yaklaştıkça tüm yöntemler doygunluğa girer ve fark daralır.</td></tr>
+      <tr><td>AS7</td><td>Çok kavşaklı ağda yerel uyarlanabilir kontrol mü, koordineli sabit plan (yeşil dalga) mı daha iyidir?</td><td>H7: Yeşil dalga, koordine edilen arter yönündeki gecikmeyi ve duruşları belirgin biçimde azaltır. Ağ genelinde ortalama gecikmede ise yerel uyarlanabilir denetleyiciler daha iyidir.</td></tr>
     </table>
   </section>
 
@@ -363,7 +463,11 @@
       <tr><td>14</td><td><b>Parametre duyarlılığı</b></td><td>Maksimum yeşil, karar eşiği (1,5 s) ve en kısa yeşilin sonuçlara etkisi.</td><td>Gecikme</td><td>Maks. yeşil kaydırıcısıyla manuel. Sistematik tarama önerilir.</td><td><span class="chip todo">Önerilen</span></td></tr>
       <tr><td>15</td><td><b>Dış geçerlilik: SUMO doğrulaması</b></td><td>Aynı denetleyicilerin TraCI arayüzüyle SUMO'da çalıştırılması ve sonuçların karşılaştırılması.</td><td>Gecikme farkı</td><td>Python + SUMO/TraCI</td><td><span class="chip todo">Önerilen</span></td></tr>
       <tr><td>16</td><td><b>Gerçek veriyle kalibrasyon</b></td><td>Belediye trafik sayım verileriyle senaryo oranlarının ve profillerin belirlenmesi.</td><td>—</td><td>Senaryo kaydırıcılarına gerçek sayımlar girilerek</td><td><span class="chip todo">Önerilen</span></td></tr>
-      <tr><td>17</td><td><b>Ağ ölçeğine genişletme</b></td><td>Ardışık kavşaklarda koordinasyon (yeşil dalga) ve geri taşma etkileşimleri.</td><td>Koridor gecikmesi</td><td>Modelin çok kavşaklı hale getirilmesi</td><td><span class="chip todo">Önerilen</span></td></tr>
+      <tr><td>17</td><td><b>Ağ ölçeğinde karşılaştırma</b></td><td>4 ağ (koridor, 2×2, 2×3, 3×3) × 7 denetleyici. Ağ genelinde yolculuk gecikmesi ve süresi (AS7).</td><td>Yolculuk gecikmesi ± %95 GA</td><td>Ağ Simülasyonu → Ağ deneyi</td><td><span class="chip ok">Uygulamada</span></td></tr>
+      <tr><td>18</td><td><b>Koordinasyon ödünleşimi</b></td><td>Yeşil dalganın koordine edilen arter yönüne kazandırdığı ile ağ ortalamasına maliyetinin karşılaştırılması (AS7).</td><td>Arter gecikmesi, duruş, ağ gecikmesi</td><td>Ağ deneyi → "Arter gecikmesi" ve "Yolculuk gecikmesi" ölçütleri</td><td><span class="chip ok">Uygulamada</span></td></tr>
+      <tr><td>19</td><td><b>Geri taşma analizi</b></td><td>Kuyrukların bir sonraki kavşağı tıkama süresi. Kısa bağlantılı ızgara ile uzun bağlantılı koridorun karşılaştırılması.</td><td>Blokaj (araç·dk/sa), en büyük ağ kuyruğu</td><td>Ağ deneyi → "Geri taşma blokajı"</td><td><span class="chip ok">Uygulamada</span></td></tr>
+      <tr><td>20</td><td><b>Dönüş oranı duyarlılığı</b></td><td>Sola ve sağa dönüş oranları artırıldıkça ağ içi dolaşımın ve kavşaklar arası bağımlılığın sonuçlara etkisi.</td><td>Yolculuk gecikmesi</td><td>Ağ Simülasyonu → dönüş kaydırıcıları, ardından Ağ deneyi</td><td><span class="chip ok">Uygulamada</span></td></tr>
+      <tr><td>21</td><td><b>Koordineli bulanık kontrol</b></td><td>Komşu kavşaktan gelen müfreze (platoon) bilgisini bulanık sisteme girdi olarak eklemek.</td><td>Arter ve ağ gecikmesi</td><td>Bulanık sisteme üçüncü girdi eklenerek</td><td><span class="chip todo">Önerilen</span></td></tr>
     </table></div>
   </section>
 
@@ -372,6 +476,7 @@
       <div class="card-head"><h2>Geçerlilik tehditleri</h2></div>
       <ul style="margin:0;padding-left:20px;font-size:14px">
         <li><b>İç geçerlilik:</b> Model basitleştirilmiştir (tek şerit, dönüş yok, homojen sürücü). Mutlak gecikme değerleri gerçeği birebir yansıtmaz, göreli karşılaştırmalar daha güvenilirdir.</li>
+        <li><b>Ağ modeli:</b> Sola dönen araç ile karşı yönden düz gelen araç arasındaki kavşak içi çatışma modellenmez ve dönüş cepleri yoktur. Yeşil dalga yalnızca doğu yönü için optimize edilmiştir.</li>
         <li><b>Algılama varsayımı:</b> Bulanık ve Q-öğrenme denetleyicileri 90 m'lik yaklaşımdaki araç sayısını kusursuz bilir (kamera ya da çoklu dedektör varsayımı). Araç tetiklemeli yalnızca tek noktadaki dedektörü kullanır. Bu bilgi farkı sonuçlarda raporlanmalıdır.</li>
         <li><b>Aşırı uyum:</b> GA ve Q-öğrenme, eğitildikleri senaryo ve tohumlara uyum sağlayabilir. Bu nedenle test tohumları ayrıdır.</li>
         <li><b>Rakip yöntem ayarı:</b> Karşılaştırmanın adil olması için sabit süreli sinyal yerine Webster planı, araç tetiklemeli kontrol için de standart parametreler kullanılır.</li>
@@ -385,9 +490,9 @@
         <li>Literatür: bulanık sinyal kontrolü, genetik-bulanık sistemler, pekiştirmeli öğrenme</li>
         <li>Yöntem: simülasyon modeli, denetleyiciler, GA ve Q-öğrenme tasarımı</li>
         <li>Deney tasarımı: senaryolar, ölçütler, istatistiksel yöntem</li>
-        <li>Bulgular: Analiz 1–13 (tablolar ve grafikler bu siteden CSV olarak alınabilir)</li>
+        <li>Bulgular: izole kavşak (Analiz 1–13) ve ağ ölçeği (Analiz 17–20)</li>
         <li>Tartışma: yorumlanabilirlik ve performans dengesi, geçerlilik tehditleri</li>
-        <li>Sonuç ve gelecek çalışmalar: Analiz 14–17</li>
+        <li>Sonuç ve gelecek çalışmalar: Analiz 14–16 ve 21</li>
       </ol>
     </section>
   </div>
@@ -399,6 +504,7 @@
 <script defer src="vendor/katex/katex.min.js"></script>
 <script defer src="vendor/katex/contrib/auto-render.min.js"></script>
 <script src="js/engine.js"></script>
+<script src="js/net.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

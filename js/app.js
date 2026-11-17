@@ -196,7 +196,7 @@ function drawPolicy(cv, Q, tb) {
 }
 
 // ---------- Yönlendirme ----------
-const VIEWS = ['simulator', 'lab', 'optimize', 'method', 'analyses'];
+const VIEWS = ['simulator', 'network', 'lab', 'optimize', 'method', 'analyses'];
 let view = 'simulator', mathDone = false;
 function route() {
   let v = (location.hash || '').slice(1); if (!VIEWS.includes(v)) v = 'simulator';
@@ -228,7 +228,7 @@ class Runner {
     return new Promise((resolve, reject) => {
       const inline = () => {
         const c = JSON.parse(JSON.stringify(cfg)); if (c.ctx && c.ctx.Q) c.ctx.Q = Float64Array.from(c.ctx.Q);
-        const gen = { lab: B.taskLab, sens: B.taskSens, ga: B.taskGA, q: B.taskQ }[task](c);
+        const gen = { lab: B.taskLab, sens: B.taskSens, ga: B.taskGA, q: B.taskQ, netlab: B.taskNetLab }[task](c);
         const slice = () => {
           if (this.cancelled) return reject(new Error('iptal'));
           const t0 = performance.now();
@@ -377,7 +377,7 @@ function frame(ts) {
     if (live.running) { live.acc += rdt * live.speed; let n = 0;
       while (live.acc >= DT && n < 600) { live.simL.step(DT); live.simR.step(DT); live.acc -= DT; n++; if (live.simL.t - live.lastRec >= 2 - 1e-9) recordLive(); } }
     renderSim();
-  }
+  } else if (view === 'network') netFrame(rdt, ts);
   requestAnimationFrame(frame);
 }
 
@@ -531,11 +531,11 @@ function initOptUI() {
   $('gaRun').addEventListener('click', runGA); $('gaStop').addEventListener('click', () => gaRunner.cancel());
   $('qRun').addEventListener('click', runQ); $('qStop').addEventListener('click', () => qRunner.cancel());
   $('gaApply').addEventListener('click', () => { if (!gaLast) return; S.P_ga = B.cloneP(gaLast.best); S.gaInfo = { scenarios: gaLast.scenarios, mode: gaLast.mode, test: gaLast.table.find(r => r.id === 'fuzzyga').test, best: B.cloneP(gaLast.best) }; save(); afterTrain(); $('gaStatus').textContent = 'Çözüm uygulandı: "Bulanık + GA" artık her yerde kullanılabilir.'; });
-  $('gaClear').addEventListener('click', () => { S.P_ga = null; S.gaInfo = null; save(); if (live.left === 'fuzzyga') live.left = 'fuzzy'; if (live.right === 'fuzzyga') live.right = 'fixed'; afterTrain(); });
+  $('gaClear').addEventListener('click', () => { S.P_ga = null; S.gaInfo = null; save(); if (live.left === 'fuzzyga') live.left = 'fuzzy'; if (live.right === 'fuzzyga') live.right = 'fixed'; if (nlive.a === 'fuzzyga') nlive.a = 'fuzzy'; if (nlive.b === 'fuzzyga') nlive.b = 'greenwave'; afterTrain(); });
   $('qTb').addEventListener('input', renderPolicy);
   renderOptState();
 }
-function afterTrain() { live.left = fillCtlSelect($('ctlL'), live.left); live.right = fillCtlSelect($('ctlR'), live.right); renderLabControllers(); renderOptState(); liveReset(false); }
+function afterTrain() { live.left = fillCtlSelect($('ctlL'), live.left); live.right = fillCtlSelect($('ctlR'), live.right); nlive.a = fillNetCtl($('nCtlA'), nlive.a); nlive.b = fillNetCtl($('nCtlB'), nlive.b); renderLabControllers(); renderNetLabControllers(); renderOptState(); liveReset(false); netReset(false); }
 function renderOptState() {
   $('gaState').textContent = S.gaInfo ? `Kayıtlı çözüm: ${scLabel(S.gaInfo.scenarios)}, ${MODE[S.gaInfo.mode]}, test gecikmesi ${fmt(S.gaInfo.test)} s` : 'Kayıtlı GA çözümü yok';
   $('qState').textContent = S.qInfo ? `Kayıtlı ajan: ${scLabel(S.qInfo.scenarios)}, ${S.qInfo.episodes} bölüm, test gecikmesi ${fmt(S.qInfo.test)} s` : 'Kayıtlı ajan yok';
@@ -610,13 +610,224 @@ function measureInfer() {
 // ---------- Görünüm değişince yeniden çiz ----------
 function refreshStatic() {
   if (view === 'lab') { renderLab(); renderSens(); }
+  if (view === 'network') renderNetLab();
   if (view === 'optimize') { renderPolicy(); if (!gaLast && !$('gaRun').disabled) placeholder($('cvGA'), 'Optimizasyon başlatıldığında yakınsama eğrisi burada çizilir.'); if (!qLast && !$('qRun').disabled) placeholder($('cvQL'), 'Eğitim başlatıldığında öğrenme eğrisi burada çizilir.'); if (gaLast && $('gaLearned').style.display !== 'none') { const P = gaLast.best; drawMF($('gaMfG'), P.g, B.SETS_IN, B.IN_MAX, null, []); drawMF($('gaMfR'), P.r, B.SETS_IN, B.IN_MAX, null, []); drawMF($('gaMfO'), P.o, B.SETS_OUT, B.OUT_MAX, null, []); } }
 }
 let rsT = 0; window.addEventListener('resize', () => { clearTimeout(rsT); rsT = setTimeout(refreshStatic, 120); });
 
+// =====================================================================
+// AĞ SİMÜLASYONU
+// =====================================================================
+const NT = Object.fromEntries(B.NET_CONTROLLERS.map(c => [c.id, c]));
+const NW = Object.fromEntries(B.NETWORKS.map(n => [n.id, n]));
+const ncol = id => C.ct[id] || C.ct.webster;
+const nlive = { def: B.NETWORKS[0], dem: null, a: 'fuzzy', b: 'greenwave', netA: null, netB: null, hist: null, running: true, speed: 4, acc: 0, lastRec: 0, seed: 7, chipT: 0 };
+nlive.dem = { main: nlive.def.main, side: nlive.def.side, left: 15, right: 15, profile: 'sabit' };
+function fillNetCtl(sel, val) {
+  sel.innerHTML = B.NET_CONTROLLERS.map(c => `<option value="${c.id}"${trained(c.id) ? '' : ' disabled'}>${c.name}${trained(c.id) ? '' : ' (önce eğitin)'}</option>`).join('');
+  if (!trained(val)) val = 'fuzzy'; sel.value = val; return val;
+}
+function initNetUI() {
+  $('nSel').innerHTML = B.NETWORKS.map(n => `<option value="${n.id}">${n.name}</option>`).join('');
+  $('nProf').innerHTML = Object.entries(B.PROFILES).map(([k, p]) => `<option value="${k}">${p.name}</option>`).join('');
+  nlive.a = fillNetCtl($('nCtlA'), nlive.a); nlive.b = fillNetCtl($('nCtlB'), nlive.b);
+  const defs = [
+    { label: 'Ana arter girişi (araç/dk)', min: 0, max: 25, get: () => nlive.dem.main, set: v => nlive.dem.main = v },
+    { label: 'Yan yol girişi (araç/dk)', min: 0, max: 20, get: () => nlive.dem.side, set: v => nlive.dem.side = v },
+    { label: 'Sabit yeşil süresi', min: 8, max: 60, unit: ' s', get: () => S.fixedG, set: v => { S.fixedG = v; for (const [net, ty] of [[nlive.netA, nlive.a], [nlive.netB, nlive.b]]) if (ty === 'fixed') net.nodes.forEach(n => n.ctrl.G = [v, v]); } },
+    { label: 'Sola dönüş (%)', min: 0, max: 40, get: () => nlive.dem.left, set: v => nlive.dem.left = v },
+    { label: 'Sağa dönüş (%)', min: 0, max: 40, get: () => nlive.dem.right, set: v => nlive.dem.right = v },
+    { label: 'Maksimum yeşil', min: 20, max: 90, unit: ' s', get: () => S.maxG, set: v => { S.maxG = v; for (const net of [nlive.netA, nlive.netB]) net.nodes.forEach(n => { if ('maxG' in n.ctrl) n.ctrl.maxG = v; }); } }
+  ];
+  const box = $('nSliders');
+  for (const d of defs) {
+    const w = document.createElement('label'); w.className = 'sl';
+    w.innerHTML = `<span>${d.label}</span><input type="range" min="${d.min}" max="${d.max}" step="1"><output></output>`;
+    box.appendChild(w);
+    const inp = w.querySelector('input'), out = w.querySelector('output');
+    d.sync = () => { inp.value = d.get(); out.textContent = d.get() + (d.unit || ''); };
+    inp.addEventListener('input', () => { d.set(+inp.value); out.textContent = inp.value + (d.unit || ''); });
+    d.sync();
+  }
+  nlive.sync = () => defs.forEach(d => d.sync());
+  $('nSel').addEventListener('change', e => { nlive.def = NW[e.target.value]; nlive.dem.main = nlive.def.main; nlive.dem.side = nlive.def.side; nlive.sync(); netReset(true); });
+  $('nProf').addEventListener('change', e => { nlive.dem.profile = e.target.value; netReset(true); });
+  $('nCtlA').addEventListener('change', e => { nlive.a = e.target.value; netReset(false); });
+  $('nCtlB').addEventListener('change', e => { nlive.b = e.target.value; netReset(false); });
+  $('nPlay').addEventListener('click', () => { nlive.running = !nlive.running; $('nPlay').textContent = nlive.running ? 'Duraklat' : 'Devam et'; });
+  $('nReset').addEventListener('click', () => netReset(true));
+  $('nSpeed').addEventListener('change', e => nlive.speed = +e.target.value);
+  const mk = el => { el.innerHTML = ['Yolculuk gecikmesi', 'Arter gecikmesi (doğuya)', 'Tamamlanan yolculuk', 'Ağdaki araç', 'Geri taşma'].map(k => `<div class="tile"><div class="k">${k}</div><div class="v">–</div></div>`).join(''); return [...el.querySelectorAll('.v')]; };
+  nlive.stA = mk($('nStA')); nlive.stB = mk($('nStB'));
+  // ağ deneyi
+  $('nlNets').innerHTML = B.NETWORKS.map(n => `<label class="check" title="${n.desc}"><input type="checkbox" value="${n.id}" checked> ${n.name}</label>`).join('');
+  renderNetLabControllers();
+  $('nlRun').addEventListener('click', runNetLab); $('nlStop').addEventListener('click', () => netRunner.cancel());
+  $('nlMetric').addEventListener('change', renderNetLab); $('nlLog').addEventListener('change', renderNetLab); $('nlRef').addEventListener('change', renderNetLab);
+}
+function renderNetLabControllers() {
+  const prev = new Set([...$('nlCt').querySelectorAll('input:checked')].map(i => i.value));
+  const wasOff = new Set([...$('nlCt').querySelectorAll('input:disabled')].map(i => i.value));
+  const first = !$('nlCt').children.length;
+  $('nlCt').innerHTML = B.NET_CONTROLLERS.map(c => { const ok = trained(c.id), on = ok && (first || prev.has(c.id) || wasOff.has(c.id));
+    return `<label class="check"><input type="checkbox" value="${c.id}"${on ? ' checked' : ''}${ok ? '' : ' disabled'}><span class="dot" style="background:${ncol(c.id)}"></span>${c.name}${ok ? '' : ' <span class="chip">eğitilmedi</span>'}</label>`; }).join('');
+  const ref = $('nlRef').value;
+  $('nlRef').innerHTML = B.NET_CONTROLLERS.filter(c => trained(c.id)).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  $('nlRef').value = (wasOff.has('fuzzyga') && S.P_ga) ? 'fuzzyga' : ref && trained(ref) ? ref : (S.P_ga ? 'fuzzyga' : 'fuzzy');
+}
+function netReset(newSeed) {
+  if (newSeed) nlive.seed = (Math.random() * 1e9) | 0;
+  const c = ctx();
+  nlive.netA = new B.Net(nlive.def, nlive.seed, nlive.dem, nlive.a, c);
+  nlive.netB = new B.Net(nlive.def, nlive.seed, nlive.dem, nlive.b, c);
+  nlive.hist = { t: [], a: [], b: [] }; nlive.lastRec = -2; netRecord();
+  const b = nlive.netA.bounds; $('nWrap').className = (b.x1 - b.x0) / (b.y1 - b.y0) > 1.6 ? 'stack' : 'grid2';
+  $('nDesc').textContent = nlive.def.desc + ' Webster ve yeşil dalga planları sıfırlamada mevcut talebe göre yeniden hesaplanır.';
+  for (const [side, ty, net] of [['A', nlive.a, nlive.netA], ['B', nlive.b, nlive.netB]]) {
+    $('nNm' + side).textContent = `Ağ ${side} · ${NT[ty].name}`; $('nHd' + side).style.background = ncol(ty); $('nDot' + side).style.background = ncol(ty);
+    const p = net.plan;
+    $('nPlan' + side).textContent = ty === 'greenwave' ? `Ortak döngü ${fmt(p.Cc, 0)} s · ofsetler ${p.wave.map(w => fmt(w.off, 0)).join(' / ')} s` :
+      ty === 'webster' ? `Döngüler ${p.plans.map(x => fmt(x.C, 0)).join(' / ')} s` : ty === 'fixed' ? `Her faz ${S.fixedG} s yeşil` : 'Her kavşak kendi kararını verir';
+  }
+  $('nQLegend').innerHTML = `<span><i style="background:${ncol(nlive.a)}"></i>A · ${NT[nlive.a].short}</span><span><i style="background:${ncol(nlive.b)}"></i>B · ${NT[nlive.b].short}</span>`;
+}
+function netRecord() { const h = nlive.hist; h.t.push(nlive.netA.t); h.a.push(nlive.netA.queued()); h.b.push(nlive.netB.queued()); if (h.t.length > 301) { h.t.shift(); h.a.shift(); h.b.shift(); } nlive.lastRec = nlive.netA.t; }
+function drawNet(cv, net, base) {
+  const b = net.bounds, W = cv.clientWidth || 600, spanX = b.x1 - b.x0, spanY = b.y1 - b.y0;
+  cv.dataset.h = Math.round(B.clamp(W * spanY / spanX, 200, 640));
+  const { ctx, H } = prep(cv), sc = Math.min(W / spanX, H / spanY), ox = (W - spanX * sc) / 2 - b.x0 * sc, oy = (H - spanY * sc) / 2 - b.y0 * sc;
+  const X = x => ox + x * sc, Y = y => oy + y * sc, HW = K.LANEW;
+  ctx.fillStyle = C.grass; ctx.fillRect(0, 0, W, H);
+  // yollar
+  ctx.strokeStyle = C.road; ctx.lineWidth = 2 * HW * sc; ctx.lineCap = 'butt';
+  for (const lk of net.links) { if (lk.head === 1 || lk.head === 3) continue; const u = B.HEAD[lk.head];
+    const sx = lk.entry ? lk.x0 : lk.from.x, sy = lk.entry ? lk.y0 : lk.from.y, ex = lk.to ? lk.to.x : lk.x0 + u[0] * lk.L, ey = lk.to ? lk.to.y : lk.y0 + u[1] * lk.L;
+    ctx.beginPath(); ctx.moveTo(X(sx), Y(sy)); ctx.lineTo(X(ex), Y(ey)); ctx.stroke(); }
+  for (const lk of net.links) if (lk.head === 3 && !lk.to) { const u = B.HEAD[3]; ctx.beginPath(); ctx.moveTo(X(lk.from.x), Y(lk.from.y)); ctx.lineTo(X(lk.x0 + u[0] * lk.L), Y(lk.y0)); ctx.stroke(); }
+  for (const lk of net.links) if (lk.head === 1 && !lk.to) { const u = B.HEAD[1]; ctx.beginPath(); ctx.moveTo(X(lk.from.x), Y(lk.from.y)); ctx.lineTo(X(lk.x0), Y(lk.y0 + u[1] * lk.L)); ctx.stroke(); }
+  // orta çizgi
+  ctx.strokeStyle = C.mark; ctx.globalAlpha = .45; ctx.lineWidth = 1; ctx.setLineDash([5, 6]);
+  for (const lk of net.links) { if (lk.head === 1 || lk.head === 3) continue; const u = B.HEAD[lk.head];
+    ctx.beginPath(); ctx.moveTo(X(lk.x0), Y(lk.y0)); ctx.lineTo(X(lk.x0 + u[0] * lk.L), Y(lk.y0 + u[1] * lk.L)); ctx.stroke(); }
+  for (const lk of net.links) if ((lk.head === 1 || lk.head === 3) && (!lk.to || lk.entry)) { const u = B.HEAD[lk.head];
+    ctx.beginPath(); ctx.moveTo(X(lk.x0), Y(lk.y0)); ctx.lineTo(X(lk.x0 + u[0] * lk.L), Y(lk.y0 + u[1] * lk.L)); ctx.stroke(); }
+  ctx.setLineDash([]); ctx.globalAlpha = 1;
+  // dur çizgileri, lambalar, kavşak adları
+  const r = Math.max(2.6, 1.5 * sc);
+  for (const n of net.nodes) {
+    for (let i = 0; i < 4; i++) { const lk = n.inLinks[i], u = B.HEAD[i], rn = [-u[1], u[0]];
+      const px = n.x - u[0] * K.BOX, py = n.y - u[1] * K.BOX;
+      ctx.strokeStyle = C.mark; ctx.lineWidth = Math.max(1.5, .5 * sc); ctx.beginPath(); ctx.moveTo(X(px), Y(py)); ctx.lineTo(X(px + rn[0] * HW), Y(py + rn[1] * HW)); ctx.stroke();
+      const s = n.sig(i), col = s === 'green' ? C.go : s === 'yellow' ? C.amber : C.red;
+      const lx = px - u[0] * 2.5 + rn[0] * (HW + 3), ly = py - u[1] * 2.5 + rn[1] * (HW + 3);
+      ctx.fillStyle = '#16181b'; ctx.beginPath(); ctx.arc(X(lx), Y(ly), r + 1.5, 0, 7); ctx.fill();
+      ctx.fillStyle = col; ctx.beginPath(); ctx.arc(X(lx), Y(ly), r, 0, 7); ctx.fill();
+    }
+    ctx.fillStyle = C.ink; ctx.font = `600 ${Math.max(10, Math.round(5 * sc))}px ${SANS}`; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+    ctx.fillText('K' + (n.id + 1), X(n.x - K.BOX - 5), Y(n.y - K.BOX - 4));
+  }
+  // araçlar
+  const cl = Math.max(5, K.CARLEN * sc), cw = Math.max(2.6, K.CARW * sc);
+  for (const lk of net.links) { const u = B.HEAD[lk.head], rn = [-u[1], u[0]];
+    for (const c of lk.cars) {
+      let x, y, ang;
+      const lx = lk.x0 + u[0] * c.s + rn[0] * HW / 2, ly = lk.y0 + u[1] * c.s + rn[1] * HW / 2;
+      if (c.s < 0 && c.hops > 0) { const f = B.clamp((c.s + B.BOXW) / B.BOXW, 0, 1), tx = lk.x0 + rn[0] * HW / 2, ty = lk.y0 + rn[1] * HW / 2;
+        x = c.fx + (tx - c.fx) * f; y = c.fy + (ty - c.fy) * f; ang = Math.atan2(ty - c.fy, tx - c.fx); }
+      else { x = lx; y = ly; ang = Math.atan2(u[1], u[0]); }
+      const wait = Math.max(0, net.t - c.tg - Math.max(0, c.dist + c.s) / K.VMAX);
+      ctx.save(); ctx.translate(X(x), Y(y)); ctx.rotate(ang); ctx.fillStyle = mix(base, C.red, Math.min(1, wait / 90));
+      ctx.fillRect(-cl, -cw / 2, cl, cw); ctx.restore(); }
+    if (lk.entry && lk.pending.length) { ctx.fillStyle = C.red; ctx.font = `500 11px ${MONO}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('+' + lk.pending.length, X(B.clamp(lk.x0 + u[0] * 8 + rn[0] * 12, b.x0 + 8, b.x1 - 8)), Y(B.clamp(lk.y0 + u[1] * 8 + rn[1] * 12, b.y0 + 6, b.y1 - 6))); }
+  }
+}
+function netStats(t, net) {
+  const d = net.avgDelay(), ed = net.eTrips ? net.eDelay / net.eTrips : NaN;
+  t[0].innerHTML = `${fmt(d)} <small>s</small>`; t[1].innerHTML = `${fmt(ed)} <small>s</small>`; t[2].textContent = net.trips; t[3].textContent = net.inNet(); t[4].innerHTML = `${fmt(net.blocked / 60, 1)} <small>araç·dk</small>`;
+}
+function netChips(el, net) {
+  el.innerHTML = net.nodes.map(n => { const col = n.state === 'green' ? C.go : n.state === 'yellow' ? C.amber : C.red;
+    return `<span class="nchip"><i style="background:${col}"></i><b>K${n.id + 1}</b> ${B.PHASE_NAMES[n.phase]} ${fmt(n.stateT, 0)} s · kuyruk ${n.queued()}</span>`; }).join('');
+}
+function renderNet(ts) {
+  const A = nlive.netA, Bn = nlive.netB;
+  drawNet($('nCvA'), A, ncol(nlive.a)); drawNet($('nCvB'), Bn, ncol(nlive.b));
+  netStats(nlive.stA, A); netStats(nlive.stB, Bn); $('nClock').textContent = mmss(A.t);
+  if (ts - nlive.chipT > 250) { nlive.chipT = ts; netChips($('nChA'), A); netChips($('nChB'), Bn); }
+  const da = A.avgDelay(), db = Bn.avgDelay();
+  if (A.t < 120) $('nVerdict').innerHTML = 'Ağ ısınıyor… Araçların ağın içine dağılması için karşılaştırma 2 dakika sonra görünür.';
+  else if (nlive.a === nlive.b) $('nVerdict').innerHTML = 'İki ağda aynı denetleyici çalışıyor. Karşılaştırma için farklı denetleyiciler seçin.';
+  else {
+    const bt = da <= db ? nlive.a : nlive.b, wt = da <= db ? nlive.b : nlive.a, pct = Math.abs(db - da) / Math.max(da, db) * 100;
+    const ea = A.eTrips ? A.eDelay / A.eTrips : 0, eb = Bn.eTrips ? Bn.eDelay / Bn.eTrips : 0, ebt = ea <= eb ? nlive.a : nlive.b;
+    $('nVerdict').innerHTML = `Ağ genelinde <b style="color:${ncol(bt)}">${NT[bt].name}</b> yolculuk başına gecikmeyi <b>%${fmt(pct, 0)}</b> daha düşük tutuyor (${fmt(Math.min(da, db))} s / ${fmt(Math.max(da, db))} s). ` +
+      (A.eTrips > 5 && Bn.eTrips > 5 ? `Ana arterde doğuya düz geçen araçlar için ise <b style="color:${ncol(ebt)}">${NT[ebt].name}</b> önde (${fmt(Math.min(ea, eb))} s / ${fmt(Math.max(ea, eb))} s).` : '');
+  }
+  const h = nlive.hist, t1 = Math.max(600, h.t[h.t.length - 1] || 0), t0 = t1 - 600, ticks = []; for (let v = Math.ceil(t0 / 120) * 120; v <= t1; v += 120) ticks.push(v);
+  drawLines($('nCvQ'), [{ xs: h.t, ys: h.b, color: ncol(nlive.b) }, { xs: h.t, ys: h.a, color: ncol(nlive.a) }], { xMin: t0, xMax: t1, xTicks: ticks, xFmt: mmss, yMax: 5 });
+}
+function netFrame(rdt, ts) {
+  if (nlive.running) { nlive.acc += rdt * nlive.speed; let n = 0;
+    while (nlive.acc >= DT && n < 300) { nlive.netA.step(DT); nlive.netB.step(DT); nlive.acc -= DT; n++; if (nlive.netA.t - nlive.lastRec >= 2 - 1e-9) netRecord(); } }
+  renderNet(ts);
+}
+// ---- ağ deneyi ----
+const netRunner = new Runner(); let netData = null;
+const NMET = { delay: { name: 'Yolculuk gecikmesi', unit: 's/araç', better: -1, d: 1 }, eDelay: { name: 'Arter gecikmesi (doğuya)', unit: 's', better: -1, d: 1 }, tt: { name: 'Yolculuk süresi', unit: 's', better: -1, d: 1 },
+  p95: { name: '95. persentil gecikme', unit: 's', better: -1, d: 1 }, stops: { name: 'Duruş / yolculuk', unit: '', better: -1, d: 2 }, thru: { name: 'Tamamlanan yolculuk', unit: 'araç/sa', better: 1, d: 0 },
+  blocked: { name: 'Geri taşma blokajı', unit: 'araç·dk/sa', better: -1, d: 1 }, maxQ: { name: 'En büyük ağ kuyruğu', unit: 'araç', better: -1, d: 0 } };
+async function runNetLab() {
+  const networks = checked('nlNets'), controllers = checked('nlCt');
+  if (!networks.length || controllers.length < 2) { $('nlStatus').textContent = 'En az 1 ağ ve 2 denetleyici seçin.'; return; }
+  const cfg = { networks, controllers, reps: +$('nlReps').value, dur: +$('nlDur').value, warm: 300, ctx: ctxPlain(), dt: DT, demand: { left: nlive.dem.left, right: nlive.dem.right, profile: nlive.dem.profile } };
+  $('nlRun').disabled = true; $('nlStop').disabled = false; const t0 = performance.now();
+  try {
+    const res = await netRunner.run('netlab', cfg, p => { $('nlBar').style.width = (p.progress * 100).toFixed(1) + '%'; $('nlStatus').textContent = p.msg; });
+    netData = { res, cfg };
+    if (!controllers.includes($('nlRef').value)) $('nlRef').value = controllers.includes('fuzzyga') ? 'fuzzyga' : controllers.includes('fuzzy') ? 'fuzzy' : controllers[0];
+    $('nlStatus').textContent = `Tamamlandı · ${networks.length * controllers.length * cfg.reps} ağ simülasyonu · ${fmt((performance.now() - t0) / 1000)} s`;
+    renderNetLab(); renderNetFindings();
+  } catch (e) { $('nlStatus').textContent = e.message === 'iptal' ? 'Durduruldu' : 'Hata: ' + e.message; }
+  $('nlRun').disabled = false; $('nlStop').disabled = true;
+}
+function renderNetLab() {
+  if (!netData) return;
+  $('nlBody').style.display = '';
+  const { res, cfg } = netData, m = $('nlMetric').value, M = NMET[m], ref = $('nlRef').value, nets = cfg.networks, cts = cfg.controllers;
+  const T = {}; for (const n of nets) { T[n] = {}; for (const c of cts) T[n][c] = summarize(res[n][c], m); }
+  const bestOf = n => cts.reduce((b, c) => (M.better < 0 ? T[n][c].mean < T[n][b].mean : T[n][c].mean > T[n][b].mean) ? c : b, cts[0]);
+  $('nlLegend').innerHTML = cts.map(c => `<span><i class="sq" style="background:${ncol(c)}"></i>${NT[c].name}</span>`).join('');
+  drawBars($('nlCv'), nets.map(n => NW[n].short), cts.map(c => ({ color: ncol(c), vals: nets.map(n => T[n][c].mean), errs: nets.map(n => T[n][c].ci) })), { log: $('nlLog').checked, yLabel: `${M.name}${M.unit ? ' (' + M.unit + ')' : ''}` });
+  let h = `<tr><th>Ağ</th>${cts.map(c => `<th><span class="dot" style="display:inline-block;background:${ncol(c)};margin-right:6px;vertical-align:middle"></span>${NT[c].short}</th>`).join('')}</tr>`;
+  for (const n of nets) { const b = bestOf(n); h += `<tr><td>${NW[n].name}</td>${cts.map(c => `<td class="${c === b ? 'best' : ''}">${fmt(T[n][c].mean, M.d)} <span class="ci">± ${fmt(T[n][c].ci, M.d)}</span></td>`).join('')}</tr>`; }
+  $('nlTable').innerHTML = h;
+  if (!cts.includes(ref)) { $('nlSig').innerHTML = ''; $('nlSigNote').textContent = 'Referans denetleyici bu deneyde yer almıyor.'; return; }
+  const rows = []; for (const n of nets) for (const c of cts) if (c !== ref) { const pt = B.pairedT(T[n][ref].arr, T[n][c].arr); rows.push({ n, c, pt, d: T[n][c].mean - T[n][ref].mean, pct: T[n][c].mean ? (T[n][c].mean - T[n][ref].mean) / T[n][c].mean * 100 : 0 }); }
+  const adj = B.holm(rows.map(r => r.pt.p)); rows.forEach((r, i) => r.ph = adj[i]);
+  $('nlSigNote').innerHTML = `Referans: <b>${NT[ref].name}</b>. Ölçüt: ${M.name.toLowerCase()}. ${cfg.reps} ortak tohumla eşleştirilmiş t-testi, ${rows.length} karşılaştırma için Holm–Bonferroni düzeltmesi (α = 0,05).`;
+  let g = `<tr><th>Ağ</th><th>Karşılaştırılan</th><th>Δ ortalama</th><th>Referans farkı</th><th>t</th><th>p</th><th>p<sub>Holm</sub></th><th>Sonuç</th></tr>`;
+  for (const r of rows) { const rb = M.better < 0 ? r.d > 0 : r.d < 0, sig = r.ph < 0.05;
+    g += `<tr><td>${NW[r.n].name}</td><td>${NT[r.c].name}</td><td>${r.d > 0 ? '+' : ''}${fmt(r.d, M.d)}</td><td>%${fmt(Math.abs(r.pct), 1)} ${rb ? 'daha iyi' : 'daha kötü'}</td><td>${Number.isFinite(r.pt.t) ? fmt(r.pt.t, 2) : '∞'}</td><td>${pfmt(r.pt.p)}</td><td>${pfmt(r.ph)}</td><td>${!sig ? '<span class="ns">Fark anlamlı değil</span>' : rb ? '<span class="pos">Referans daha iyi</span>' : '<span class="neg">Referans daha kötü</span>'}</td></tr>`; }
+  $('nlSig').innerHTML = g;
+}
+function renderNetFindings() {
+  if (!netData) return;
+  const { res, cfg } = netData, items = [];
+  items.push(`Ağ deneyi: ${cfg.networks.length} ağ × ${cfg.controllers.length} denetleyici × ${cfg.reps} tekrar, ${cfg.dur / 60} dk (5 dk ısınma), sola/sağa dönüş %${cfg.demand.left}/%${cfg.demand.right}.`);
+  for (const n of cfg.networks) {
+    const T = {}; for (const c of cfg.controllers) T[c] = { d: summarize(res[n][c], 'delay').mean, e: summarize(res[n][c], 'eDelay').mean, b: summarize(res[n][c], 'blocked').mean };
+    const best = k => cfg.controllers.reduce((a, c) => T[c][k] < T[a][k] ? c : a, cfg.controllers[0]);
+    const bd = best('d'), be = best('e'), bb = best('b');
+    items.push(`${NW[n].name}: ağ genelinde en düşük gecikme <b>${NT[bd].name}</b> (${fmt(T[bd].d)} s). Ana arterde doğuya düz geçen araçlar için en iyisi <b>${NT[be].name}</b> (${fmt(T[be].e)} s). En az geri taşma <b>${NT[bb].name}</b> (${fmt(T[bb].b)} araç·dk/sa).`);
+  }
+  let el = $('netFind'); if (!el) { el = document.createElement('div'); el.id = 'netFind'; el.style.marginTop = '12px'; $('findings').appendChild(el); }
+  el.innerHTML = `<h3 style="margin-top:6px">Ağ deneyi</h3><ul style="margin:0;padding-left:20px">${items.map(i => `<li style="margin:4px 0">${i}</li>`).join('')}</ul>`;
+}
+
 // ---------- Başlat ----------
-initSimUI(); initLabUI(); initOptUI();
-liveReset(false);
+initSimUI(); initLabUI(); initOptUI(); initNetUI();
+liveReset(false); netReset(false);
 route();
 setTimeout(measureInfer, 300);
 requestAnimationFrame(frame);

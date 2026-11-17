@@ -8,7 +8,8 @@
 
 | Sekme | İçerik |
 |---|---|
-| **Simülatör** | Aynı rastgele araç akışı altında iki denetleyiciyi yan yana izleme. 9 senaryo ve 4 talep profili sunulur. Canlı bulanık çıkarım paneli ve düzenlenebilir kural tabanı vardır. |
+| **Simülatör** | Tek kavşak. Aynı rastgele araç akışı altında iki denetleyiciyi yan yana izleme. 9 senaryo ve 4 talep profili sunulur. Canlı bulanık çıkarım paneli ve düzenlenebilir kural tabanı vardır. |
+| **Ağ Simülasyonu** | Çok kavşaklı yol ağları: ana arter koridoru (1×3) ve 2×2, 2×3, 3×3 ızgaralar. Araçlar kavşaklarda sağa ya da sola döner. Kuyruklar önceki kavşağa taşabilir (geri taşma). Yeşil dalga (koordineli plan), iki ağın yan yana karşılaştırması ve ağlar arası toplu deney sunulur. |
 | **Deney Laboratuvarı** | Senaryo × denetleyici × tekrar biçiminde toplu deneyler. %95 güven aralığı, Holm düzeltmeli eşleştirilmiş t-testi, HCM hizmet düzeyi (LOS), çok ölçütlü sonuçlar, talep duyarlılık analizi ve CSV dışa aktarımı içerir. |
 | **Optimizasyon** | Genetik algoritmayla üyelik fonksiyonu ve kural tabanı arama. Ablasyon için üç mod vardır. Tablo tabanlı Q-öğrenme ajanı eğitilir ve politikası ısı haritasıyla gösterilir. Sonuçlar eğitim ve test tohumları ayrı tutularak raporlanır. |
 | **Yöntem ve Literatür** | Kuramsal temel, formüller, model varsayımları, deney tasarımı ve kaynakça. |
@@ -24,6 +25,7 @@
 | Bulanık (Mamdani) | 2 girdi (yeşil ve kırmızı yöndeki araç sayısı), 1 çıktı (uzatma süresi), 9 kural. Min–max çıkarım, ağırlık merkezi durulaştırma |
 | Bulanık + GA | Üyelik merkezleri ve kural sonuçları genetik algoritmayla optimize edilmiş bulanık sistem |
 | Q-öğrenme | 144 durum × 2 eylem (sürdür / değiştir) tablo tabanlı ajan |
+| Yeşil dalga (yalnız ağ) | Ortak döngü ve doğu yönü için ofset θ = x / v<sub>p</sub> mod C |
 
 ## Örnek sonuç
 
@@ -41,6 +43,22 @@ GA ile ayarlanmış bulanık denetleyici, Holm düzeltmeli eşleştirilmiş t-te
 - Webster'e göre 7/9 senaryoda anlamlı olarak daha düşük gecikme.
 - Elle tasarlanmış bulanık sisteme göre 7/9 senaryoda anlamlı olarak daha düşük gecikme.
 - Araç tetiklemeli kontrole göre 8/9 senaryoda anlamlı fark yok (denk performans), 1 senaryoda anlamlı olarak daha iyi.
+
+### Ağ ölçeği
+
+4 ağ × 7 denetleyici × 5 tekrar, 20 dk simülasyon, 5 dk ısınma, %15 sola ve %15 sağa dönüş. Değerler yolculuk başına ortalama gecikmedir (s). Arter sütunu, ana arterde doğuya dönmeden geçen araçların gecikmesidir.
+
+| Ağ | Sabit | Webster | Yeşil dalga | Tetiklemeli | Bulanık | Bulanık+GA | Q-öğrenme | Arter: yeşil dalga / Bulanık+GA |
+|---|---|---|---|---|---|---|---|---|
+| Koridor 1×3 | 60,8 | 30,0 | 31,3 | 21,9 | 27,7 | **21,4** | 26,7 | **17,7** / 27,1 |
+| Izgara 2×2 | 35,0 | 38,8 | 33,9 | 28,2 | 35,7 | **26,1** | 31,4 | **21,8** / 24,2 |
+| Izgara 2×3 | 47,2 | 45,9 | 43,7 | 33,2 | 42,4 | **31,6** | 37,7 | **23,6** / 32,4 |
+| Izgara 3×3 | 51,2 | 44,3 | 49,6 | 38,7 | 48,9 | **35,2** | 44,5 | **23,4** / 32,7 |
+
+Bu sonuçlardan üç gözlem çıkıyor:
+- Tek kavşakta eğitilen GA-bulanık çözüm ağa aktarıldığında dört ağın hepsinde en düşük ağ gecikmesini verdi.
+- Yeşil dalga, koordine edilen arter yönündeki gecikmeyi yaklaşık yarıya indirdi, ancak ağ ortalamasında geride kaldı. Bu, koordinasyonun bilinen ödünleşimidir.
+- Elle tasarlanmış bulanık denetleyici en az geri taşma blokajını üretti.
 
 Sonuçlar rastgele tohumlara ve GA koşusuna göre küçük farklılıklar gösterebilir.
 
@@ -60,7 +78,8 @@ Dosya doğrudan `file://` ile açılırsa hesaplamalar sayfa içinde, daha yava�
 ```
 index.html        Arayüz, yöntem metni ve analiz planı
 css/style.css     Stil
-js/engine.js      Simülasyon motoru, denetleyiciler, istatistik, GA ve Q-öğrenme (DOM'suz)
+js/engine.js      Tek kavşak simülasyon motoru, denetleyiciler, istatistik, GA ve Q-öğrenme (DOM'suz)
+js/net.js         Çok kavşaklı ağ motoru: geometri, rotalar, geri taşma, yeşil dalga
 js/worker.js      Ağır hesaplamalar için Web Worker
 js/app.js         Arayüz mantığı ve grafikler
 vendor/katex/     Formül gösterimi (KaTeX, MIT lisansı)
